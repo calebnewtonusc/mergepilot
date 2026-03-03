@@ -40,7 +40,8 @@ class SFTTrainingConfig:
     lora_target_modules: list[str] | None = None  # Auto-detected
 
     # Data paths (after synthesis)
-    review_pairs: str = "./data/synthesized/review_pairs.jsonl"
+    # Supports glob of data/training/*.jsonl or a single file
+    review_pairs: str = "./data/training"
     dpo_pairs: str = "./data/synthesized/dpo_pairs.jsonl"
 
     # Logging
@@ -99,22 +100,34 @@ Generate the minimal diff that addresses this review comment, plus tests that ve
 
 
 def load_all_training_data(config: SFTTrainingConfig) -> Dataset:
-    """Load and combine all training streams."""
+    """
+    Load and combine all training streams from data/training/*.jsonl.
+
+    Supports both a directory of JSONL files and a single JSONL file.
+    """
     import json
 
     all_examples = []
-    streams = [
-        config.review_pairs,
-    ]
+    data_path = Path(config.review_pairs)
 
-    for stream_path in streams:
-        if not Path(stream_path).exists():
-            logger.warning(f"Stream not found: {stream_path}, skipping")
-            continue
-        with open(stream_path) as f:
-            examples = [json.loads(line) for line in f if line.strip()]
-        logger.info(f"Loaded {len(examples)} examples from {stream_path}")
-        all_examples.extend(examples)
+    if data_path.is_dir():
+        # Load all *.jsonl files in the directory
+        jsonl_files = sorted(data_path.glob("*.jsonl"))
+        if not jsonl_files:
+            raise FileNotFoundError(
+                f"No *.jsonl files found in {data_path}. Run synthesis pipeline first."
+            )
+        for jsonl_file in jsonl_files:
+            with open(jsonl_file) as f:
+                examples = [json.loads(line) for line in f if line.strip()]
+            logger.info(f"Loaded {len(examples)} examples from {jsonl_file}")
+            all_examples.extend(examples)
+    elif data_path.is_file():
+        with open(data_path) as f:
+            all_examples = [json.loads(line) for line in f if line.strip()]
+        logger.info(f"Loaded {len(all_examples)} examples from {data_path}")
+    else:
+        logger.warning(f"Training data path not found: {data_path}")
 
     logger.info(f"Total training examples: {len(all_examples)}")
 
