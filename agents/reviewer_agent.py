@@ -194,7 +194,7 @@ class ReviewerAgent:
         assessment = "COMMENT"
         if re.search(r"\bAPPROVE\b|\bLGTM\b|\bapprove\b", raw_review, re.IGNORECASE):
             assessment = "APPROVE"
-        elif re.search(r"REQUEST.CHANGES\b|blocking|critical", raw_review, re.IGNORECASE):
+        elif re.search(r"REQUEST_CHANGES\b|blocking|critical", raw_review, re.IGNORECASE):
             assessment = "REQUEST_CHANGES"
 
         # Extract summary (first paragraph)
