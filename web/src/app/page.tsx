@@ -1,31 +1,15 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import Nav from "@/components/nav";
 import Waitlist from "@/components/waitlist";
 
 const ACCENT = "#6366F1";
 const HUB_URL = "https://specialized-model-startups.vercel.app";
 
-function useScrollReveal() {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { el.classList.add("visible"); obs.unobserve(el); } },
-      { threshold: 0.12 }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-  return ref;
-}
 
 function SectionLabel({ label }: { label: string }) {
-  const ref = useScrollReveal();
   return (
-    <div ref={ref} className="reveal flex items-center gap-5 mb-12">
+    <div className="reveal flex items-center gap-5 mb-12">
       <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400 shrink-0">{label}</span>
       <div className="flex-1 h-px bg-gray-100" />
     </div>
@@ -151,9 +135,8 @@ export default function Home() {
                 desc: "Direct Preference Optimization on (minimal-scope PR, bloated-scope PR) pairs. MergePilot learns scope discipline — the smallest diff that addresses the review comment, nothing more.",
               },
             ].map(({ step, title, desc }) => {
-              const ref = useScrollReveal();
               return (
-                <div key={step} ref={ref} className="reveal-scale rounded-2xl border border-gray-100 bg-white p-8">
+                <div key={step} className="reveal-scale rounded-2xl border border-gray-100 bg-white p-8">
                   <div className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: ACCENT }}>{step}</div>
                   <h3 className="serif font-semibold text-lg mb-3 text-gray-900">{title}</h3>
                   <p className="text-sm text-gray-500 leading-relaxed">{desc}</p>
@@ -206,11 +189,10 @@ export default function Home() {
               desc: "Learns per-reviewer patterns from historical PR data. If a maintainer always requests early returns over nested conditionals, MergePilot generates that style without being asked.",
             },
           ].map(({ icon, title, desc }) => {
-            const ref = useScrollReveal();
             return (
               <div
                 key={title}
-                ref={ref}
+               
                 className="reveal rounded-2xl border border-gray-100 p-7 flex gap-5 hover:border-gray-200 transition-colors"
               >
                 <div
@@ -239,11 +221,10 @@ export default function Home() {
               { stat: "Qwen2.5-7B", label: "Base model", sub: "Coder-Instruct, LoRA rank 64" },
               { stat: "Merged + Green + Minimal", label: "Reward signal", sub: "PR merged · tests pass · minimal diff" },
             ].map(({ stat, label, sub }) => {
-              const ref = useScrollReveal();
               return (
                 <div
                   key={label}
-                  ref={ref}
+                 
                   className="reveal rounded-2xl border p-8"
                   style={{ borderColor: `${ACCENT}20` }}
                 >
