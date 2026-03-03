@@ -4,11 +4,14 @@ MergePilot Synthesis Pipeline — Bulk async synthesis
 Generates structured review → implementation pairs from raw PR data.
 """
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 import asyncio
 import json
 import os
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Optional
 
 import aiofiles

@@ -132,6 +132,8 @@ def compute_scope_reward(generated_diff: str, gold_diff: str) -> float:
     Returns 1.0 if generated diff is <= gold diff size.
     Decreases linearly as diff grows beyond gold size.
     """
+    if not generated_diff.strip():
+        return 0.0
     if not gold_diff:
         return 0.5
     gen_lines = len(generated_diff.strip().splitlines())
@@ -205,9 +207,21 @@ def load_rl_dataset(data_path: str) -> Dataset:
     """
     import json
     examples = []
-    with open(data_path) as f:
+    try:
+        f_handle = open(data_path)
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            f"Training data not found at {data_path}. Run synthesis stage first."
+        )
+    with f_handle as f:
         for line in f:
-            ex = json.loads(line)
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                ex = json.loads(line)
+            except json.JSONDecodeError:
+                continue
             ex["prompt"] = format_rl_prompt(ex)
             ex["metadata"] = {
                 "repo_path": ex.get("repo_path"),
@@ -276,7 +290,7 @@ def train(config: RLTrainingConfig):
 
     trainer = GRPOTrainer(
         model=model,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         args=grpo_config,
         train_dataset=dataset,
         reward_funcs=[reward_fn],
