@@ -1,0 +1,155 @@
+version: "3.9"
+
+# MergePilot production stack
+# GPUs 0-7: vLLM inference (4 instances, 2 GPUs each)
+# GPUs 8-15: Training (not used by docker-compose)
+# CPU: API server, nginx
+
+services:
+
+  # ── vLLM inference instances ────────────────────────────────────────────
+  vllm-0:
+    image: vllm/vllm-openai:latest
+    runtime: nvidia
+    environment:
+      NVIDIA_VISIBLE_DEVICES: "0,1"
+      VLLM_API_KEY: ${VLLM_API_KEY:-}
+    command: >
+      --model /model
+      --port 8001
+      --host 0.0.0.0
+      --tensor-parallel-size 2
+      --gpu-memory-utilization 0.85
+      --max-model-len 4096
+      --enable-prefix-caching
+      --dtype bfloat16
+    volumes:
+      - ./checkpoints/mergepilot-v1/merged:/model:ro
+      - huggingface-cache:/root/.cache/huggingface
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  vllm-1:
+    image: vllm/vllm-openai:latest
+    runtime: nvidia
+    environment:
+      NVIDIA_VISIBLE_DEVICES: "2,3"
+      VLLM_API_KEY: ${VLLM_API_KEY:-}
+    command: >
+      --model /model
+      --port 8002
+      --host 0.0.0.0
+      --tensor-parallel-size 2
+      --gpu-memory-utilization 0.85
+      --max-model-len 4096
+      --enable-prefix-caching
+      --dtype bfloat16
+    volumes:
+      - ./checkpoints/mergepilot-v1/merged:/model:ro
+      - huggingface-cache:/root/.cache/huggingface
+    ports:
+      - "8002:8002"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  vllm-2:
+    image: vllm/vllm-openai:latest
+    runtime: nvidia
+    environment:
+      NVIDIA_VISIBLE_DEVICES: "4,5"
+      VLLM_API_KEY: ${VLLM_API_KEY:-}
+    command: >
+      --model /model
+      --port 8003
+      --host 0.0.0.0
+      --tensor-parallel-size 2
+      --gpu-memory-utilization 0.85
+      --max-model-len 4096
+      --enable-prefix-caching
+      --dtype bfloat16
+    volumes:
+      - ./checkpoints/mergepilot-v1/merged:/model:ro
+      - huggingface-cache:/root/.cache/huggingface
+    ports:
+      - "8003:8003"
+    restart: unless-stopped
+
+  vllm-3:
+    image: vllm/vllm-openai:latest
+    runtime: nvidia
+    environment:
+      NVIDIA_VISIBLE_DEVICES: "6,7"
+      VLLM_API_KEY: ${VLLM_API_KEY:-}
+    command: >
+      --model /model
+      --port 8004
+      --host 0.0.0.0
+      --tensor-parallel-size 2
+      --gpu-memory-utilization 0.85
+      --max-model-len 4096
+      --enable-prefix-caching
+      --dtype bfloat16
+    volumes:
+      - ./checkpoints/mergepilot-v1/merged:/model:ro
+      - huggingface-cache:/root/.cache/huggingface
+    ports:
+      - "8004:8004"
+    restart: unless-stopped
+
+  # ── MergePilot API ──────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    environment:
+      MERGEPILOT_BACKEND: "vllm"
+      VLLM_URL: "http://vllm-0:8001"
+      VLLM_URLS: "http://vllm-0:8001,http://vllm-1:8002,http://vllm-2:8003,http://vllm-3:8004"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      MERGEPILOT_API_KEYS: ${MERGEPILOT_API_KEYS:-}
+      API_WORKERS: "4"
+    ports:
+      - "8000:8000"
+    depends_on:
+      vllm-0:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Redis (rate limiting + caching) ─────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    command: redis-server --maxmemory 2gb --maxmemory-policy allkeys-lru
+
+  # ── nginx reverse proxy ──────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/certs:/etc/nginx/certs:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  huggingface-cache:
