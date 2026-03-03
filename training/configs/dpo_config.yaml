@@ -1,0 +1,39 @@
+# MergePilot DPO Training Config
+# Stage 3: DPO on (minimal_diff, bloated_diff) preference pairs
+# Chosen = minimal diff that addresses the review comment exactly
+# Rejected = bloated diff with unnecessary extra changes
+
+model:
+  name_or_path: "Qwen/Qwen2.5-7B-Coder-Instruct"
+  rl_checkpoint: "checkpoints/mergepilot-rl-v1"
+  torch_dtype: "bfloat16"
+  attn_implementation: "flash_attention_2"
+  trust_remote_code: true
+
+data:
+  train_path: "data/dpo/preference_pairs.jsonl"
+  max_length: 4096
+  max_prompt_length: 2048
+
+dpo:
+  beta: 0.1
+  loss_type: "sigmoid"
+  label_smoothing: 0.0
+
+training:
+  output_dir: "checkpoints/mergepilot-dpo-v1"
+  run_name: "mergepilot-dpo-v1"
+  num_train_epochs: 1
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 8
+  learning_rate: 5.0e-7
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.01
+  bf16: true
+  optim: "rmsprop"
+  logging_steps: 10
+  save_steps: 100
+  report_to: "wandb"
+
+wandb:
+  project: "mergepilot-dpo"

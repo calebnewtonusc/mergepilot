@@ -1,0 +1,64 @@
+# MergePilot RL Training Config
+# Stage 2: GRPO with merge-outcome + test + scope rewards
+# Reward = 0.40 * merge_reward + 0.35 * test_reward + 0.15 * regression_reward + 0.10 * scope_reward
+
+model:
+  name_or_path: "Qwen/Qwen2.5-7B-Coder-Instruct"
+  sft_checkpoint: "checkpoints/mergepilot-sft-v1"
+  torch_dtype: "bfloat16"
+  attn_implementation: "flash_attention_2"
+  trust_remote_code: true
+
+lora:
+  r: 64
+  lora_alpha: 128
+  lora_dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+data:
+  train_path: "data/rl/review_tasks.jsonl"
+  max_seq_length: 4096
+
+grpo:
+  num_generations: 8          # Sample 8 diff attempts per review comment
+  temperature: 0.7
+  top_p: 0.95
+  kl_coeff: 0.05
+
+reward_weights:
+  merge_reward: 0.40          # Proxy: diff present + tests present + all pass = 1.0
+  test_reward: 0.35           # Binary: new tests pass in sandbox
+  regression_reward: 0.15     # Binary: existing tests still pass after patch
+  scope_reward: 0.10          # Ratio: generated diff size <= gold diff size
+
+sandbox:
+  timeout_seconds: 60
+  languages:
+    - python
+    - typescript
+    - javascript
+
+training:
+  output_dir: "checkpoints/mergepilot-rl-v1"
+  run_name: "mergepilot-rl-v1"
+  num_train_epochs: 1
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 8
+  learning_rate: 5.0e-6
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.01
+  bf16: true
+  optim: "adamw_torch_fused"
+  logging_steps: 10
+  save_steps: 100
+  report_to: "wandb"
+
+wandb:
+  project: "mergepilot-rl"

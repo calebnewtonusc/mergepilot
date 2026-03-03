@@ -96,7 +96,7 @@ async def synthesize_pair(
 
     try:
         async with session.post(
-            f"{vllm_url}/chat/completions",
+            f"{vllm_url}/v1/chat/completions",
             json=payload,
             headers=headers,
             timeout=aiohttp.ClientTimeout(total=120),
@@ -140,7 +140,7 @@ async def synthesize_dpo_pair(
 
     try:
         async with session.post(
-            f"{vllm_url}/chat/completions",
+            f"{vllm_url}/v1/chat/completions",
             json=payload,
             headers=headers,
             timeout=aiohttp.ClientTimeout(total=120),
