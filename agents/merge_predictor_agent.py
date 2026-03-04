@@ -25,9 +25,10 @@ from synthesis.prompts import MERGE_PREDICTION_SYSTEM, MERGE_PREDICTION_USER
 @dataclass
 class MergePrediction:
     """Prediction result for a PR."""
+
     pr_id: str
-    merge_probability: float   # 0.0 - 1.0
-    recommendation: str        # "merge" | "request_changes" | "close"
+    merge_probability: float  # 0.0 - 1.0
+    recommendation: str  # "merge" | "request_changes" | "close"
     key_factors: list[str] = field(default_factory=list)
     risk_factors: list[str] = field(default_factory=list)
     confidence: float = 0.5
@@ -180,7 +181,6 @@ class MergePredictorAgent:
 
     def _extract_json(self, text: str) -> dict:
         """Robustly extract a JSON object from a text response (handles markdown fences)."""
-        import re
         if not text:
             raise ValueError("Empty response")
         try:
@@ -188,11 +188,11 @@ class MergePredictorAgent:
         except json.JSONDecodeError:
             pass
         # Try JSON inside markdown code fences
-        code_match = re.search(r'```(?:json)?\s*\n(.*?)```', text, re.DOTALL)
+        code_match = re.search(r"```(?:json)?\s*\n(.*?)```", text, re.DOTALL)
         if code_match:
             return json.loads(code_match.group(1))
         # Try any JSON object in the response
-        obj_match = re.search(r'\{.*\}', text, re.DOTALL)
+        obj_match = re.search(r"\{.*\}", text, re.DOTALL)
         if obj_match:
             return json.loads(obj_match.group(0))
         raise ValueError(f"No JSON found in response: {text[:100]}")

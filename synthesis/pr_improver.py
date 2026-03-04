@@ -87,9 +87,11 @@ Return ONLY valid JSON matching the specified format.
 
 # ── Data Classes ──────────────────────────────────────────────────────────────
 
+
 @dataclass
 class ImprovedPR:
     """A PR improved by addressing review comments."""
+
     repo: str
     pr_number: Optional[int]
     language: str
@@ -107,6 +109,7 @@ class ImprovedPR:
 
 # ── Quality Scoring ───────────────────────────────────────────────────────────
 
+
 def score_improvement(result: dict, review_comment: str) -> float:
     """Score the quality of a PR improvement (0.0 – 1.0)."""
     score = 0.3
@@ -116,7 +119,9 @@ def score_improvement(result: dict, review_comment: str) -> float:
     reasoning = result.get("reasoning", "")
 
     # Has actual diff content
-    if minimal_diff and ("@@" in minimal_diff or "+" in minimal_diff or "-" in minimal_diff):
+    if minimal_diff and (
+        "@@" in minimal_diff or "+" in minimal_diff or "-" in minimal_diff
+    ):
         score += 0.2
 
     # Has test code
@@ -145,6 +150,7 @@ def score_improvement(result: dict, review_comment: str) -> float:
 
 
 # ── LLM Interface ─────────────────────────────────────────────────────────────
+
 
 class PRImprover:
     """
@@ -263,7 +269,7 @@ class PRImprover:
             pass
 
         # Extract from code block
-        code_match = re.search(r'```(?:json)?\s*\n(.*?)```', response, re.DOTALL)
+        code_match = re.search(r"```(?:json)?\s*\n(.*?)```", response, re.DOTALL)
         if code_match:
             try:
                 return json.loads(code_match.group(1))
@@ -377,14 +383,21 @@ class PRImprover:
 if __name__ == "__main__":
     import argparse
     from dotenv import load_dotenv
+
     load_dotenv()
 
-    parser = argparse.ArgumentParser(description="Generate improved PR diffs from review comments")
+    parser = argparse.ArgumentParser(
+        description="Generate improved PR diffs from review comments"
+    )
     parser.add_argument("--input", required=True, help="Input JSONL with PR records")
     parser.add_argument("--output", default="data/synthesized/improved_prs.jsonl")
     parser.add_argument("--backend", choices=["claude", "vllm"], default="claude")
-    parser.add_argument("--vllm-urls", nargs="+", default=None,
-                        help="vLLM server URLs (e.g. http://localhost:8001/v1)")
+    parser.add_argument(
+        "--vllm-urls",
+        nargs="+",
+        default=None,
+        help="vLLM server URLs (e.g. http://localhost:8001/v1)",
+    )
     parser.add_argument("--workers", type=int, default=20)
     parser.add_argument("--min-score", type=float, default=0.5)
     parser.add_argument("--max-tokens", type=int, default=2048)

@@ -55,7 +55,6 @@ and common vulnerability patterns. You notice:
 
 Your reviews are specific: you cite the exact line and mechanism of the vulnerability.
 Never raise false positives — if something COULD be a problem but is demonstrably safe, note that.""",
-
     "performance": """\
 You are a performance-focused code reviewer who understands memory layout, CPU caches,
 database query plans, and async I/O. You notice:
@@ -68,7 +67,6 @@ database query plans, and async I/O. You notice:
 - Unbounded memory growth (appending to list in loop without bound)
 
 You always quantify: "this will make 10 extra DB queries per request" not just "N+1 query".""",
-
     "correctness": """\
 You are a correctness-focused code reviewer who catches logical errors, edge cases, and subtle bugs.
 You notice:
@@ -82,7 +80,6 @@ You notice:
 - Incorrect use of floating point equality
 
 You explain WHY the code is wrong with a concrete counterexample.""",
-
     "testing": """\
 You are a testing-focused code reviewer who ensures code is properly verified.
 You notice:
@@ -95,7 +92,6 @@ You notice:
 - Missing property-based tests for algorithmic code
 
 You suggest specific test cases: "test with empty list, None, and list of one element".""",
-
     "documentation": """\
 You are a documentation-focused code reviewer ensuring code is understandable.
 You notice:
@@ -108,7 +104,6 @@ You notice:
 - API changes without updating changelog or README
 
 You suggest specific improvements: show the exact docstring that should be added.""",
-
     "maintainability": """\
 You are a maintainability-focused code reviewer ensuring code is clean and extensible.
 You notice:
@@ -188,9 +183,11 @@ Return ONLY valid JSON.
 
 # ── Data Classes ──────────────────────────────────────────────────────────────
 
+
 @dataclass
 class ReviewPair:
     """A synthesized review comment with minimal diff for SFT."""
+
     repo: str
     pr_number: Optional[int]
     language: str
@@ -210,6 +207,7 @@ class ReviewPair:
 @dataclass
 class DPOPair:
     """A DPO preference pair: minimal diff vs. bloated diff."""
+
     repo: str
     pr_number: Optional[int]
     language: str
@@ -221,6 +219,7 @@ class DPOPair:
 
 
 # ── Quality Scoring ───────────────────────────────────────────────────────────
+
 
 def score_review(result: dict, diff: str) -> float:
     """Score review quality (0.0 – 1.0)."""
@@ -236,7 +235,7 @@ def score_review(result: dict, diff: str) -> float:
         score += 0.15
 
     # Has file path or code reference
-    if result.get("file_path") or re.search(r'`\w', comment):
+    if result.get("file_path") or re.search(r"`\w", comment):
         score += 0.1
 
     # Has minimal fix
@@ -252,8 +251,8 @@ def score_review(result: dict, diff: str) -> float:
         score += 0.1
 
     # Review references something in the diff
-    diff_identifiers = set(re.findall(r'\b\w{3,}\b', diff[:2000]))
-    comment_identifiers = set(re.findall(r'\b\w{3,}\b', comment))
+    diff_identifiers = set(re.findall(r"\b\w{3,}\b", diff[:2000]))
+    comment_identifiers = set(re.findall(r"\b\w{3,}\b", comment))
     overlap = len(diff_identifiers & comment_identifiers)
     if overlap >= 5:
         score += 0.05
@@ -262,6 +261,7 @@ def score_review(result: dict, diff: str) -> float:
 
 
 # ── Synthesizer Class ─────────────────────────────────────────────────────────
+
 
 class ReviewSynthesizer:
     """
@@ -309,7 +309,9 @@ class ReviewSynthesizer:
             dpo_stem = self.output_path.stem + "_dpo"
             self.dpo_path = self.output_path.parent / f"{dpo_stem}.jsonl"
 
-    async def _call_claude(self, system: str, user: str, max_tokens: int = 1500) -> Optional[str]:
+    async def _call_claude(
+        self, system: str, user: str, max_tokens: int = 1500
+    ) -> Optional[str]:
         """Call Claude API."""
         try:
             resp = await self._claude.messages.create(
@@ -324,7 +326,9 @@ class ReviewSynthesizer:
             logger.debug(f"Claude error: {e}")
             return None
 
-    async def _call_vllm(self, system: str, user: str, max_tokens: int = 1500) -> Optional[str]:
+    async def _call_vllm(
+        self, system: str, user: str, max_tokens: int = 1500
+    ) -> Optional[str]:
         """Call vLLM server."""
         if not self.vllm_urls:
             return None
@@ -364,7 +368,9 @@ class ReviewSynthesizer:
             logger.debug(f"vLLM error: {e}")
             return None
 
-    async def _call_llm(self, system: str, user: str, max_tokens: int = 1500) -> Optional[str]:
+    async def _call_llm(
+        self, system: str, user: str, max_tokens: int = 1500
+    ) -> Optional[str]:
         """Route to configured backend."""
         if self.backend == "claude":
             return await self._call_claude(system, user, max_tokens)
@@ -378,14 +384,14 @@ class ReviewSynthesizer:
             return json.loads(response)
         except json.JSONDecodeError:
             pass
-        code_match = re.search(r'```(?:json)?\s*\n(.*?)```', response, re.DOTALL)
+        code_match = re.search(r"```(?:json)?\s*\n(.*?)```", response, re.DOTALL)
         if code_match:
             try:
                 return json.loads(code_match.group(1))
             except json.JSONDecodeError:
                 pass
         # Try to find any JSON object in the response
-        obj_match = re.search(r'\{.*\}', response, re.DOTALL)
+        obj_match = re.search(r"\{.*\}", response, re.DOTALL)
         if obj_match:
             try:
                 return json.loads(obj_match.group(0))
@@ -400,7 +406,9 @@ class ReviewSynthesizer:
             return None
 
         persona_system = REVIEWER_PERSONAS[persona]
-        persona_context = f"Review as a {persona} expert. Focus on {persona}-related issues."
+        persona_context = (
+            f"Review as a {persona} expert. Focus on {persona}-related issues."
+        )
 
         user_prompt = REVIEW_SYNTHESIS_USER_TEMPLATE.format(
             repo=pr.get("repo", "unknown/repo"),
@@ -449,7 +457,9 @@ class ReviewSynthesizer:
             minimal_fix=review_pair.minimal_fix[:2000],
         )
 
-        response = await self._call_llm("You are a code review training data generator.", user_prompt)
+        response = await self._call_llm(
+            "You are a code review training data generator.", user_prompt
+        )
         if not response:
             return None
 
@@ -542,18 +552,25 @@ class ReviewSynthesizer:
 if __name__ == "__main__":
     import argparse
     from dotenv import load_dotenv
+
     load_dotenv()
 
-    parser = argparse.ArgumentParser(description="Synthesize persona-based code reviews")
+    parser = argparse.ArgumentParser(
+        description="Synthesize persona-based code reviews"
+    )
     parser.add_argument("--input", required=True, help="Input JSONL with raw PR diffs")
     parser.add_argument("--output", default="data/synthesized/review_pairs.jsonl")
     parser.add_argument("--backend", choices=["claude", "vllm"], default="claude")
     parser.add_argument(
-        "--vllm-urls", nargs="+", default=None,
+        "--vllm-urls",
+        nargs="+",
+        default=None,
         help="vLLM server URLs (e.g. http://localhost:8001/v1)",
     )
     parser.add_argument(
-        "--personas", nargs="+", default=None,
+        "--personas",
+        nargs="+",
+        default=None,
         choices=list(REVIEWER_PERSONAS.keys()),
         help="Reviewer personas to use (default: all)",
     )

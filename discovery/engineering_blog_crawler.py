@@ -21,9 +21,15 @@ from loguru import logger
 
 
 BLOG_SOURCES = [
-    {"name": "google_eng_practices", "url": "https://google.github.io/eng-practices/review/"},
+    {
+        "name": "google_eng_practices",
+        "url": "https://google.github.io/eng-practices/review/",
+    },
     {"name": "airbnb_engineering", "url": "https://medium.com/airbnb-engineering"},
-    {"name": "netflix_tech_blog", "url": "https://netflixtechblog.com/tagged/code-review"},
+    {
+        "name": "netflix_tech_blog",
+        "url": "https://netflixtechblog.com/tagged/code-review",
+    },
     {"name": "stripe_engineering", "url": "https://stripe.com/blog/engineering"},
     {"name": "shopify_engineering", "url": "https://shopify.engineering"},
 ]
@@ -32,6 +38,7 @@ BLOG_SOURCES = [
 @dataclass
 class BlogPost:
     """A single engineering blog post about code review."""
+
     source: str
     title: str
     url: str
@@ -80,29 +87,37 @@ class EngineeringBlogCrawler:
         posts = []
 
         # Extract main content
-        content_div = soup.find("main") or soup.find("article") or soup.find("div", class_="content")
+        content_div = (
+            soup.find("main")
+            or soup.find("article")
+            or soup.find("div", class_="content")
+        )
         if content_div:
             content = content_div.get_text()[:5000]
             principles = self._extract_principles(content)
-            posts.append(BlogPost(
-                source=source["name"],
-                title=source["name"].replace("_", " ").title(),
-                url=source["url"],
-                content=content,
-                key_principles=principles,
-            ))
+            posts.append(
+                BlogPost(
+                    source=source["name"],
+                    title=source["name"].replace("_", " ").title(),
+                    url=source["url"],
+                    content=content,
+                    key_principles=principles,
+                )
+            )
 
         return posts
 
     def _extract_principles(self, content: str) -> list[str]:
         """Extract actionable review principles from article text."""
-        import re
         principles = []
         lines = content.split("\n")
         for line in lines:
             line = line.strip()
             if len(line) > 40 and len(line) < 200:
-                if any(kw in line.lower() for kw in ["should", "must", "always", "never", "prefer"]):
+                if any(
+                    kw in line.lower()
+                    for kw in ["should", "must", "always", "never", "prefer"]
+                ):
                     principles.append(line)
         return principles[:10]
 
@@ -118,6 +133,7 @@ class EngineeringBlogCrawler:
 
 if __name__ == "__main__":
     from dotenv import load_dotenv
+
     load_dotenv()
 
     crawler = EngineeringBlogCrawler(output_dir="data/raw/blogs")

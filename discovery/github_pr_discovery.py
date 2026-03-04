@@ -23,7 +23,6 @@ import asyncio
 import hashlib
 import json
 import os
-import re
 import time
 from dataclasses import dataclass, asdict
 from pathlib import Path
@@ -39,15 +38,30 @@ TARGET_LANGUAGES = {"Python", "TypeScript", "JavaScript", "Go", "Rust", "Java", 
 
 # Signals that a review led to a code change (actionable review)
 APPROVAL_SIGNALS = {
-    "lgtm", "looks good to me", "approved", "ship it", "+1",
-    "ready to merge", "good to go", "nicely done",
+    "lgtm",
+    "looks good to me",
+    "approved",
+    "ship it",
+    "+1",
+    "ready to merge",
+    "good to go",
+    "nicely done",
 }
 
 # Review keywords that indicate a change-requesting review
 REVIEW_REQUEST_SIGNALS = {
-    "please fix", "needs to be", "should be", "can you",
-    "change this", "update this", "consider", "nit:",
-    "blocking:", "must change", "required:", "address this",
+    "please fix",
+    "needs to be",
+    "should be",
+    "can you",
+    "change this",
+    "update this",
+    "consider",
+    "nit:",
+    "blocking:",
+    "must change",
+    "required:",
+    "address this",
 }
 
 OUTPUT_DIR = Path("data/raw/github_prs")
@@ -56,11 +70,11 @@ OUTPUT_DIR = Path("data/raw/github_prs")
 @dataclass
 class ReviewComment:
     comment_id: int
-    reviewer: str           # anonymized
+    reviewer: str  # anonymized
     body: str
-    path: Optional[str]     # file path the comment was left on
-    line: Optional[int]     # line number
-    diff_hunk: str          # context around the comment
+    path: Optional[str]  # file path the comment was left on
+    line: Optional[int]  # line number
+    diff_hunk: str  # context around the comment
 
 
 @dataclass
@@ -69,12 +83,12 @@ class PRDiscoveryRecord:
     pr_number: int
     title: str
     language: str
-    original_diff: str      # diff at time of first review
-    review_comments: list   # list of ReviewComment dicts
-    revised_diff: str       # final merged diff (may differ if commits added after review)
-    merge_outcome: str      # "merged" | "rejected" | "abandoned"
+    original_diff: str  # diff at time of first review
+    review_comments: list  # list of ReviewComment dicts
+    revised_diff: str  # final merged diff (may differ if commits added after review)
+    merge_outcome: str  # "merged" | "rejected" | "abandoned"
     n_approvals: int
-    reviewers: list         # anonymized reviewer handles
+    reviewers: list  # anonymized reviewer handles
     pr_url: str
     stars: int
     created_at: str
@@ -92,7 +106,7 @@ class GitHubPRDiscovery:
     extracts review comment → code change pairs with exponential backoff.
     """
 
-    REQUEST_DELAY = 0.15    # seconds between requests per token
+    REQUEST_DELAY = 0.15  # seconds between requests per token
     MAX_RETRIES = 5
 
     def __init__(
@@ -106,14 +120,20 @@ class GitHubPRDiscovery:
     ) -> None:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.tokens = tokens or [t for t in [
-            os.environ.get("GITHUB_TOKEN"),
-            os.environ.get("GITHUB_TOKEN_1"),
-            os.environ.get("GITHUB_TOKEN_2"),
-            os.environ.get("GITHUB_TOKEN_3"),
-        ] if t]
+        self.tokens = tokens or [
+            t
+            for t in [
+                os.environ.get("GITHUB_TOKEN"),
+                os.environ.get("GITHUB_TOKEN_1"),
+                os.environ.get("GITHUB_TOKEN_2"),
+                os.environ.get("GITHUB_TOKEN_3"),
+            ]
+            if t
+        ]
         if not self.tokens:
-            raise ValueError("No GitHub tokens found. Set GITHUB_TOKEN environment variable.")
+            raise ValueError(
+                "No GitHub tokens found. Set GITHUB_TOKEN environment variable."
+            )
         self.workers = workers
         self.min_stars = min_stars
         self.max_prs_per_repo = max_prs_per_repo
@@ -155,17 +175,25 @@ class GitHubPRDiscovery:
         """Fetch a GitHub API URL with exponential backoff on rate limits."""
         await asyncio.sleep(self.REQUEST_DELAY)
         try:
-            async with session.get(url, headers=self._headers(accept), timeout=aiohttp.ClientTimeout(total=30)) as resp:
+            async with session.get(
+                url,
+                headers=self._headers(accept),
+                timeout=aiohttp.ClientTimeout(total=30),
+            ) as resp:
                 if resp.status == 200:
                     if "diff" in accept:
                         return await resp.text()
                     return await resp.json()
                 elif resp.status in (403, 429):
                     retry_after = int(resp.headers.get("Retry-After", 60))
-                    reset_time = int(resp.headers.get("X-RateLimit-Reset", time.time() + 60))
+                    reset_time = int(
+                        resp.headers.get("X-RateLimit-Reset", time.time() + 60)
+                    )
                     wait = max(retry_after, reset_time - int(time.time())) + 5
                     if retries < self.MAX_RETRIES:
-                        logger.warning(f"Rate limited on {url}. Waiting {wait}s (retry {retries+1}/{self.MAX_RETRIES})")
+                        logger.warning(
+                            f"Rate limited on {url}. Waiting {wait}s (retry {retries + 1}/{self.MAX_RETRIES})"
+                        )
                         await asyncio.sleep(wait)
                         return await self._fetch(session, url, accept, retries + 1)
                 elif resp.status == 404:
@@ -174,13 +202,13 @@ class GitHubPRDiscovery:
                     return None
                 else:
                     if retries < self.MAX_RETRIES:
-                        wait = (2 ** retries) * 2
+                        wait = (2**retries) * 2
                         await asyncio.sleep(wait)
                         return await self._fetch(session, url, accept, retries + 1)
                     self._stats["api_errors"] += 1
         except asyncio.TimeoutError:
             if retries < self.MAX_RETRIES:
-                await asyncio.sleep(2 ** retries)
+                await asyncio.sleep(2**retries)
                 return await self._fetch(session, url, accept, retries + 1)
         except Exception as e:
             logger.debug(f"Fetch error for {url}: {e}")
@@ -211,12 +239,14 @@ class GitHubPRDiscovery:
                     break
 
                 for repo in data["items"]:
-                    repos.append({
-                        "full_name": repo["full_name"],
-                        "language": repo.get("language", language),
-                        "stars": repo.get("stargazers_count", 0),
-                        "default_branch": repo.get("default_branch", "main"),
-                    })
+                    repos.append(
+                        {
+                            "full_name": repo["full_name"],
+                            "language": repo.get("language", language),
+                            "stars": repo.get("stargazers_count", 0),
+                            "default_branch": repo.get("default_branch", "main"),
+                        }
+                    )
                     language_count += 1
                     if language_count >= per_language:
                         break
@@ -285,13 +315,23 @@ class GitHubPRDiscovery:
 
     def _count_diff_lines(self, diff: str) -> int:
         return sum(
-            1 for line in diff.splitlines()
+            1
+            for line in diff.splitlines()
             if (line.startswith("+") and not line.startswith("+++"))
             or (line.startswith("-") and not line.startswith("---"))
         )
 
     def _has_test_files(self, diff: str) -> bool:
-        test_indicators = ["test_", "_test.", ".spec.", "/test/", "/tests/", "/spec/", "test.java", "_spec.rb"]
+        test_indicators = [
+            "test_",
+            "_test.",
+            ".spec.",
+            "/test/",
+            "/tests/",
+            "/spec/",
+            "test.java",
+            "_spec.rb",
+        ]
         for line in diff.splitlines():
             if line.startswith("+++ b/") or line.startswith("--- a/"):
                 path = line[6:]
@@ -306,14 +346,16 @@ class GitHubPRDiscovery:
             body = c.get("body", "").strip()
             if len(body) < 15:
                 continue
-            structured.append(ReviewComment(
-                comment_id=c["id"],
-                reviewer=self._anonymize(c.get("user", {}).get("login", "")),
-                body=body,
-                path=c.get("path"),
-                line=c.get("line") or c.get("original_line"),
-                diff_hunk=c.get("diff_hunk", "")[:500],
-            ))
+            structured.append(
+                ReviewComment(
+                    comment_id=c["id"],
+                    reviewer=self._anonymize(c.get("user", {}).get("login", "")),
+                    body=body,
+                    path=c.get("path"),
+                    line=c.get("line") or c.get("original_line"),
+                    diff_hunk=c.get("diff_hunk", "")[:500],
+                )
+            )
         return structured
 
     async def _process_pr(
@@ -340,7 +382,9 @@ class GitHubPRDiscovery:
 
         # Get reviews and review comments
         reviews = await self._get_pr_reviews(session, repo, pr_number)
-        review_comments_raw = await self._get_pr_review_comments(session, repo, pr_number)
+        review_comments_raw = await self._get_pr_review_comments(
+            session, repo, pr_number
+        )
 
         # Count approvals
         approvals = [r for r in reviews if r.get("state") == "APPROVED"]
@@ -364,7 +408,7 @@ class GitHubPRDiscovery:
             language=language,
             original_diff=diff[:12000],
             review_comments=[asdict(c) for c in review_comments],
-            revised_diff=diff[:12000],   # Same diff (the merged result)
+            revised_diff=diff[:12000],  # Same diff (the merged result)
             merge_outcome=merge_outcome,
             n_approvals=n_approvals,
             reviewers=reviewers,
@@ -395,7 +439,9 @@ class GitHubPRDiscovery:
 
             try:
                 # Fetch both merged and recently closed (rejected) PRs
-                prs = await self._get_prs(session, repo, state="closed", max_prs=self.max_prs_per_repo)
+                prs = await self._get_prs(
+                    session, repo, state="closed", max_prs=self.max_prs_per_repo
+                )
                 if not prs:
                     return 0
 
@@ -404,7 +450,9 @@ class GitHubPRDiscovery:
 
                 async with aiofiles.open(output_file, "w") as f:
                     for pr in prs:
-                        record = await self._process_pr(session, repo, pr, language, stars)
+                        record = await self._process_pr(
+                            session, repo, pr, language, stars
+                        )
                         if record is None:
                             continue
 
@@ -425,7 +473,9 @@ class GitHubPRDiscovery:
 
     async def crawl_all(self, n_repos: int = 5000) -> None:
         """Main entrypoint: discover repos and crawl their PRs."""
-        logger.info(f"Starting GitHub PR discovery: {n_repos} repos, {self.workers} workers")
+        logger.info(
+            f"Starting GitHub PR discovery: {n_repos} repos, {self.workers} workers"
+        )
 
         async with aiohttp.ClientSession(
             timeout=aiohttp.ClientTimeout(total=60),
@@ -468,14 +518,26 @@ if __name__ == "__main__":
 
     load_dotenv()
 
-    parser = argparse.ArgumentParser(description="Discover GitHub PR outcome pairs for MergePilot.")
-    parser.add_argument("--repos", type=int, default=5000, help="Number of repos to crawl")
+    parser = argparse.ArgumentParser(
+        description="Discover GitHub PR outcome pairs for MergePilot."
+    )
+    parser.add_argument(
+        "--repos", type=int, default=5000, help="Number of repos to crawl"
+    )
     parser.add_argument("--workers", type=int, default=10, help="Concurrent workers")
-    parser.add_argument("--min-stars", type=int, default=1000, help="Minimum repo stars")
+    parser.add_argument(
+        "--min-stars", type=int, default=1000, help="Minimum repo stars"
+    )
     parser.add_argument("--max-prs", type=int, default=50, help="Max PRs per repo")
-    parser.add_argument("--output-dir", default="data/raw/github_prs", help="Output directory")
-    parser.add_argument("--languages", nargs="+", default=None, help="Languages to include")
-    parser.add_argument("--stats", action="store_true", help="Print stats about existing data")
+    parser.add_argument(
+        "--output-dir", default="data/raw/github_prs", help="Output directory"
+    )
+    parser.add_argument(
+        "--languages", nargs="+", default=None, help="Languages to include"
+    )
+    parser.add_argument(
+        "--stats", action="store_true", help="Print stats about existing data"
+    )
     args = parser.parse_args()
 
     if args.stats:
@@ -487,15 +549,21 @@ if __name__ == "__main__":
                 merged += 1
             else:
                 rejected += 1
-        print(f"Total records: {total:,}  |  Merged: {merged:,}  |  Rejected: {rejected:,}")
+        print(
+            f"Total records: {total:,}  |  Merged: {merged:,}  |  Rejected: {rejected:,}"
+        )
         raise SystemExit(0)
 
-    tokens = [t for t in [
-        os.getenv("GITHUB_TOKEN"),
-        os.getenv("GITHUB_TOKEN_1"),
-        os.getenv("GITHUB_TOKEN_2"),
-        os.getenv("GITHUB_TOKEN_3"),
-    ] if t]
+    tokens = [
+        t
+        for t in [
+            os.getenv("GITHUB_TOKEN"),
+            os.getenv("GITHUB_TOKEN_1"),
+            os.getenv("GITHUB_TOKEN_2"),
+            os.getenv("GITHUB_TOKEN_3"),
+        ]
+        if t
+    ]
 
     languages = set(args.languages) if args.languages else None
 

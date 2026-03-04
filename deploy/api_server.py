@@ -35,7 +35,9 @@ security = HTTPBearer(auto_error=False)
 API_KEYS = set(os.environ.get("MERGEPILOT_API_KEYS", "").split(",")) - {""}
 
 
-def verify_api_key(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
+def verify_api_key(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+):
     if not API_KEYS:
         return  # No auth required if no keys configured
     if not credentials or credentials.credentials not in API_KEYS:
@@ -94,28 +96,36 @@ app.add_middleware(
 
 # ─── Request / Response Models ───────────────────────────────────────────────
 
+
 class ReviewRequest(BaseModel):
     diff: str = Field(..., min_length=10, description="Unified diff of the PR")
     repo: str = Field("unknown", description="Repository name (owner/repo)")
     pr_title: str = Field("", description="PR title")
     language: str = Field("Python", description="Primary programming language")
-    context: str = Field("", description="Additional context (description, linked issues)")
+    context: str = Field(
+        "", description="Additional context (description, linked issues)"
+    )
     pr_id: str = Field("", description="PR identifier for tracking")
 
 
 class FixRequest(BaseModel):
     diff: str = Field(..., min_length=10, description="Original PR diff")
-    review_comment: str = Field(..., min_length=10, description="Review comment to implement")
+    review_comment: str = Field(
+        ..., min_length=10, description="Review comment to implement"
+    )
     pr_id: str = Field("", description="PR identifier")
 
 
 class PredictRequest(BaseModel):
     diff: str = Field(..., min_length=10, description="PR diff")
-    review_comments: list[str] = Field(default_factory=list, description="Review comments")
+    review_comments: list[str] = Field(
+        default_factory=list, description="Review comments"
+    )
     pr_id: str = Field("", description="PR identifier")
 
 
 # ─── Endpoints ──────────────────────────────────────────────────────────────
+
 
 @app.get("/health")
 async def health():
@@ -282,6 +292,7 @@ async def score_review(
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "deploy.api_server:app",
         host="0.0.0.0",

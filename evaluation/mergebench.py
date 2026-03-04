@@ -30,60 +30,216 @@ MERGEBENCH_REPOS = [
     # Python — 15 repos
     {"repo": "pallets/flask", "language": "Python", "domain": "web", "size": "large"},
     {"repo": "psf/requests", "language": "Python", "domain": "web", "size": "medium"},
-    {"repo": "pydantic/pydantic", "language": "Python", "domain": "devtools", "size": "large"},
-    {"repo": "tiangolo/fastapi", "language": "Python", "domain": "web", "size": "large"},
+    {
+        "repo": "pydantic/pydantic",
+        "language": "Python",
+        "domain": "devtools",
+        "size": "large",
+    },
+    {
+        "repo": "tiangolo/fastapi",
+        "language": "Python",
+        "domain": "web",
+        "size": "large",
+    },
     {"repo": "encode/httpx", "language": "Python", "domain": "web", "size": "medium"},
-    {"repo": "sqlalchemy/sqlalchemy", "language": "Python", "domain": "data", "size": "large"},
-    {"repo": "pytest-dev/pytest", "language": "Python", "domain": "devtools", "size": "large"},
-    {"repo": "celery/celery", "language": "Python", "domain": "systems", "size": "large"},
+    {
+        "repo": "sqlalchemy/sqlalchemy",
+        "language": "Python",
+        "domain": "data",
+        "size": "large",
+    },
+    {
+        "repo": "pytest-dev/pytest",
+        "language": "Python",
+        "domain": "devtools",
+        "size": "large",
+    },
+    {
+        "repo": "celery/celery",
+        "language": "Python",
+        "domain": "systems",
+        "size": "large",
+    },
     {"repo": "boto/boto3", "language": "Python", "domain": "devtools", "size": "large"},
-    {"repo": "huggingface/transformers", "language": "Python", "domain": "ml", "size": "large"},
-    {"repo": "scikit-learn/scikit-learn", "language": "Python", "domain": "ml", "size": "large"},
-    {"repo": "pandas-dev/pandas", "language": "Python", "domain": "data", "size": "large"},
-    {"repo": "aio-libs/aiohttp", "language": "Python", "domain": "web", "size": "large"},
-    {"repo": "python-poetry/poetry", "language": "Python", "domain": "devtools", "size": "medium"},
+    {
+        "repo": "huggingface/transformers",
+        "language": "Python",
+        "domain": "ml",
+        "size": "large",
+    },
+    {
+        "repo": "scikit-learn/scikit-learn",
+        "language": "Python",
+        "domain": "ml",
+        "size": "large",
+    },
+    {
+        "repo": "pandas-dev/pandas",
+        "language": "Python",
+        "domain": "data",
+        "size": "large",
+    },
+    {
+        "repo": "aio-libs/aiohttp",
+        "language": "Python",
+        "domain": "web",
+        "size": "large",
+    },
+    {
+        "repo": "python-poetry/poetry",
+        "language": "Python",
+        "domain": "devtools",
+        "size": "medium",
+    },
     {"repo": "pypa/pip", "language": "Python", "domain": "devtools", "size": "large"},
-
     # TypeScript — 12 repos
-    {"repo": "microsoft/TypeScript", "language": "TypeScript", "domain": "devtools", "size": "large"},
+    {
+        "repo": "microsoft/TypeScript",
+        "language": "TypeScript",
+        "domain": "devtools",
+        "size": "large",
+    },
     {"repo": "nestjs/nest", "language": "TypeScript", "domain": "web", "size": "large"},
-    {"repo": "typeorm/typeorm", "language": "TypeScript", "domain": "data", "size": "large"},
+    {
+        "repo": "typeorm/typeorm",
+        "language": "TypeScript",
+        "domain": "data",
+        "size": "large",
+    },
     {"repo": "trpc/trpc", "language": "TypeScript", "domain": "web", "size": "medium"},
-    {"repo": "prisma/prisma", "language": "TypeScript", "domain": "data", "size": "large"},
-    {"repo": "colinhacks/zod", "language": "TypeScript", "domain": "devtools", "size": "medium"},
-    {"repo": "vitest-dev/vitest", "language": "TypeScript", "domain": "devtools", "size": "medium"},
-    {"repo": "tanstack/query", "language": "TypeScript", "domain": "web", "size": "medium"},
-    {"repo": "biomejs/biome", "language": "TypeScript", "domain": "devtools", "size": "large"},
-    {"repo": "vercel/next.js", "language": "TypeScript", "domain": "web", "size": "large"},
-    {"repo": "denoland/deno", "language": "TypeScript", "domain": "systems", "size": "large"},
-    {"repo": "microsoft/vscode", "language": "TypeScript", "domain": "devtools", "size": "large"},
-
+    {
+        "repo": "prisma/prisma",
+        "language": "TypeScript",
+        "domain": "data",
+        "size": "large",
+    },
+    {
+        "repo": "colinhacks/zod",
+        "language": "TypeScript",
+        "domain": "devtools",
+        "size": "medium",
+    },
+    {
+        "repo": "vitest-dev/vitest",
+        "language": "TypeScript",
+        "domain": "devtools",
+        "size": "medium",
+    },
+    {
+        "repo": "tanstack/query",
+        "language": "TypeScript",
+        "domain": "web",
+        "size": "medium",
+    },
+    {
+        "repo": "biomejs/biome",
+        "language": "TypeScript",
+        "domain": "devtools",
+        "size": "large",
+    },
+    {
+        "repo": "vercel/next.js",
+        "language": "TypeScript",
+        "domain": "web",
+        "size": "large",
+    },
+    {
+        "repo": "denoland/deno",
+        "language": "TypeScript",
+        "domain": "systems",
+        "size": "large",
+    },
+    {
+        "repo": "microsoft/vscode",
+        "language": "TypeScript",
+        "domain": "devtools",
+        "size": "large",
+    },
     # Go — 8 repos
     {"repo": "gin-gonic/gin", "language": "Go", "domain": "web", "size": "medium"},
     {"repo": "golang/go", "language": "Go", "domain": "systems", "size": "large"},
-    {"repo": "hashicorp/terraform", "language": "Go", "domain": "devtools", "size": "large"},
-    {"repo": "kubernetes/kubernetes", "language": "Go", "domain": "systems", "size": "large"},
+    {
+        "repo": "hashicorp/terraform",
+        "language": "Go",
+        "domain": "devtools",
+        "size": "large",
+    },
+    {
+        "repo": "kubernetes/kubernetes",
+        "language": "Go",
+        "domain": "systems",
+        "size": "large",
+    },
     {"repo": "gofiber/fiber", "language": "Go", "domain": "web", "size": "medium"},
     {"repo": "etcd-io/etcd", "language": "Go", "domain": "systems", "size": "large"},
-    {"repo": "prometheus/prometheus", "language": "Go", "domain": "systems", "size": "large"},
+    {
+        "repo": "prometheus/prometheus",
+        "language": "Go",
+        "domain": "systems",
+        "size": "large",
+    },
     {"repo": "spf13/cobra", "language": "Go", "domain": "devtools", "size": "medium"},
-
     # Rust — 8 repos
-    {"repo": "rust-lang/rust", "language": "Rust", "domain": "systems", "size": "large"},
-    {"repo": "tokio-rs/tokio", "language": "Rust", "domain": "systems", "size": "large"},
-    {"repo": "serde-rs/serde", "language": "Rust", "domain": "devtools", "size": "medium"},
+    {
+        "repo": "rust-lang/rust",
+        "language": "Rust",
+        "domain": "systems",
+        "size": "large",
+    },
+    {
+        "repo": "tokio-rs/tokio",
+        "language": "Rust",
+        "domain": "systems",
+        "size": "large",
+    },
+    {
+        "repo": "serde-rs/serde",
+        "language": "Rust",
+        "domain": "devtools",
+        "size": "medium",
+    },
     {"repo": "actix/actix-web", "language": "Rust", "domain": "web", "size": "medium"},
-    {"repo": "clap-rs/clap", "language": "Rust", "domain": "devtools", "size": "medium"},
+    {
+        "repo": "clap-rs/clap",
+        "language": "Rust",
+        "domain": "devtools",
+        "size": "medium",
+    },
     {"repo": "hyperium/hyper", "language": "Rust", "domain": "web", "size": "medium"},
-    {"repo": "launchbadge/sqlx", "language": "Rust", "domain": "data", "size": "medium"},
+    {
+        "repo": "launchbadge/sqlx",
+        "language": "Rust",
+        "domain": "data",
+        "size": "medium",
+    },
     {"repo": "axum-rs/axum", "language": "Rust", "domain": "web", "size": "medium"},
-
     # Java — 7 repos
-    {"repo": "spring-projects/spring-boot", "language": "Java", "domain": "web", "size": "large"},
+    {
+        "repo": "spring-projects/spring-boot",
+        "language": "Java",
+        "domain": "web",
+        "size": "large",
+    },
     {"repo": "square/okhttp", "language": "Java", "domain": "web", "size": "medium"},
-    {"repo": "elastic/elasticsearch", "language": "Java", "domain": "data", "size": "large"},
-    {"repo": "JetBrains/intellij-community", "language": "Java", "domain": "devtools", "size": "large"},
-    {"repo": "gradle/gradle", "language": "Java", "domain": "devtools", "size": "large"},
+    {
+        "repo": "elastic/elasticsearch",
+        "language": "Java",
+        "domain": "data",
+        "size": "large",
+    },
+    {
+        "repo": "JetBrains/intellij-community",
+        "language": "Java",
+        "domain": "devtools",
+        "size": "large",
+    },
+    {
+        "repo": "gradle/gradle",
+        "language": "Java",
+        "domain": "devtools",
+        "size": "large",
+    },
     {"repo": "google/guava", "language": "Java", "domain": "devtools", "size": "large"},
     {"repo": "apache/kafka", "language": "Java", "domain": "systems", "size": "large"},
 ]
@@ -98,7 +254,9 @@ class MergeResult:
     pr_merged: bool
     tests_passed: bool
     reviewer_approved: bool
-    regression_free: Optional[bool]  # None = sandbox not available (excluded from aggregate)
+    regression_free: Optional[
+        bool
+    ]  # None = sandbox not available (excluded from aggregate)
     generated_diff_lines: int
     gold_diff_lines: int
 
@@ -109,7 +267,9 @@ class MergeResult:
         return self.generated_diff_lines / self.gold_diff_lines
 
 
-def run_tests_in_sandbox(repo_path: Path, diff: str, language: str, timeout: int = 60) -> dict:
+def run_tests_in_sandbox(
+    repo_path: Path, diff: str, language: str, timeout: int = 60
+) -> dict:
     """Apply diff to sandbox and run tests. Returns test/regression results."""
     with tempfile.TemporaryDirectory() as tmpdir:
         # Copy repo to sandbox
@@ -121,7 +281,9 @@ def run_tests_in_sandbox(repo_path: Path, diff: str, language: str, timeout: int
         diff_file.write_text(diff)
         patch = subprocess.run(
             ["patch", "-p1", "-i", str(diff_file)],
-            cwd=str(sandbox), capture_output=True, timeout=30
+            cwd=str(sandbox),
+            capture_output=True,
+            timeout=30,
         )
 
         if patch.returncode != 0:
@@ -186,9 +348,14 @@ def evaluate_agent(
             review_comment = comment_data.get("review_comment", "")
             file_context = comment_data.get("file_context", "")
             gold_diff = comment_data.get("gold_diff", "")
-            gold_lines = len([l for l in gold_diff.splitlines()
-                               if (l.startswith("+") and not l.startswith("+++"))
-                               or (l.startswith("-") and not l.startswith("---"))])
+            gold_lines = len(
+                [
+                    l
+                    for l in gold_diff.splitlines()
+                    if (l.startswith("+") and not l.startswith("+++"))
+                    or (l.startswith("-") and not l.startswith("---"))
+                ]
+            )
 
             try:
                 diff, tests = agent_fn(review_comment, file_context, repo, language)
@@ -196,9 +363,14 @@ def evaluate_agent(
                 logger.error(f"Agent failed on {repo}: {e}")
                 diff, tests = "", ""
 
-            gen_lines = len([l for l in diff.splitlines()
-                              if (l.startswith("+") and not l.startswith("+++"))
-                              or (l.startswith("-") and not l.startswith("---"))])
+            gen_lines = len(
+                [
+                    l
+                    for l in diff.splitlines()
+                    if (l.startswith("+") and not l.startswith("+++"))
+                    or (l.startswith("-") and not l.startswith("---"))
+                ]
+            )
 
             # Run sandbox tests if repo data is available
             if diff and repo_path.exists():
@@ -207,7 +379,9 @@ def evaluate_agent(
                 regression_free = sandbox_result["regression_free"]
             else:
                 tests_passed = bool(tests.strip())
-                regression_free = None  # None = "not measured" — excluded from aggregate stats
+                regression_free = (
+                    None  # None = "not measured" — excluded from aggregate stats
+                )
 
             # Reviewer approval heuristic (proxy: tests pass + scope ≤ 1.3×)
             scope_ratio = gen_lines / max(gold_lines, 1)
@@ -266,7 +440,7 @@ def evaluate_agent(
     with open(summary_path, "w") as f:
         json.dump(summary, f, indent=2)
 
-    logger.info(f"\nMergeBench Results:")
+    logger.info("\nMergeBench Results:")
     logger.info(f"  Merge rate:          {summary['merge_rate']:.1%}")
     logger.info(f"  Test pass rate:      {summary['test_pass_rate']:.1%}")
     logger.info(f"  First-approval rate: {summary['first_approval_rate']:.1%}")

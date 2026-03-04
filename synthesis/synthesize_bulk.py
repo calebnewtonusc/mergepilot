@@ -6,6 +6,7 @@ Generates structured review → implementation pairs from raw PR data.
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import asyncio
@@ -25,6 +26,7 @@ from synthesis.prompts import REVIEW_SYSTEM, REVIEW_USER
 @dataclass
 class SynthesisResult:
     """Result of synthesizing one review pair."""
+
     pr_id: str
     conversation: dict
     quality_score: float
@@ -50,7 +52,9 @@ class SynthesisPipeline:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.backend = backend
         self.vllm_urls = vllm_urls or []
-        self.vllm_model = vllm_model or os.getenv("MODEL_PATH", "Qwen/Qwen2.5-7B-Coder-Instruct")
+        self.vllm_model = vllm_model or os.getenv(
+            "MODEL_PATH", "Qwen/Qwen2.5-7B-Coder-Instruct"
+        )
         self.workers = workers
         self.min_quality_score = min_quality_score
         self._semaphore = asyncio.Semaphore(workers)
@@ -118,8 +122,14 @@ class SynthesisPipeline:
 
             conversation = {
                 "conversations": [
-                    {"role": "system", "content": "You are MergePilot, an expert code reviewer."},
-                    {"role": "user", "content": f"PR diff:\n```diff\n{diff[:3000]}\n```"},
+                    {
+                        "role": "system",
+                        "content": "You are MergePilot, an expert code reviewer.",
+                    },
+                    {
+                        "role": "user",
+                        "content": f"PR diff:\n```diff\n{diff[:3000]}\n```",
+                    },
                     {"role": "assistant", "content": response},
                 ],
                 "metadata": {
@@ -131,7 +141,9 @@ class SynthesisPipeline:
                 },
             }
 
-            output_file = self.output_dir / f"{pr.get('language', 'unknown').lower()}.jsonl"
+            output_file = (
+                self.output_dir / f"{pr.get('language', 'unknown').lower()}.jsonl"
+            )
             async with aiofiles.open(output_file, "a") as f:
                 await f.write(json.dumps(conversation) + "\n")
 
@@ -149,11 +161,18 @@ class SynthesisPipeline:
         response_lower = response.lower()
 
         # Has category tags
-        categories = ["[correctness]", "[security]", "[performance]", "[tests]", "[docs]"]
+        categories = [
+            "[correctness]",
+            "[security]",
+            "[performance]",
+            "[tests]",
+            "[docs]",
+        ]
         score += 0.1 * sum(1 for c in categories if c in response_lower)
 
         # Has file/line references
         import re
+
         if re.search(r"file:|line:|path:", response_lower):
             score += 0.1
 
@@ -172,7 +191,9 @@ class SynthesisPipeline:
             return await self._call_claude(system, user, max_tokens)
         return await self._call_vllm(system, user, max_tokens)
 
-    async def _call_claude(self, system: str, user: str, max_tokens: int) -> Optional[str]:
+    async def _call_claude(
+        self, system: str, user: str, max_tokens: int
+    ) -> Optional[str]:
         try:
             resp = await self._claude.messages.create(
                 model="claude-opus-4-6",
@@ -185,7 +206,9 @@ class SynthesisPipeline:
             logger.debug(f"Claude error: {e}")
             return None
 
-    async def _call_vllm(self, system: str, user: str, max_tokens: int) -> Optional[str]:
+    async def _call_vllm(
+        self, system: str, user: str, max_tokens: int
+    ) -> Optional[str]:
         if not self.vllm_urls:
             return None
         url = self.vllm_urls[self._vllm_index % len(self.vllm_urls)]
@@ -203,7 +226,9 @@ class SynthesisPipeline:
                         "max_tokens": max_tokens,
                         "temperature": 0.7,
                     },
-                    headers={"Authorization": f"Bearer {os.getenv('VLLM_API_KEY', '')}"},
+                    headers={
+                        "Authorization": f"Bearer {os.getenv('VLLM_API_KEY', '')}"
+                    },
                     timeout=aiohttp.ClientTimeout(total=60),
                 ) as resp:
                     if resp.status == 200:
@@ -217,9 +242,12 @@ class SynthesisPipeline:
 if __name__ == "__main__":
     import argparse
     from dotenv import load_dotenv
+
     load_dotenv()
 
-    parser = argparse.ArgumentParser(description="Bulk synthesis of code review training data")
+    parser = argparse.ArgumentParser(
+        description="Bulk synthesis of code review training data"
+    )
     parser.add_argument("--backend", choices=["claude", "vllm"], default="claude")
     parser.add_argument("--vllm-urls", nargs="+", default=[])
     parser.add_argument("--workers", type=int, default=20)

@@ -11,9 +11,7 @@ Output: JSONL with diff, review comments, merge outcome per PR
 import asyncio
 import json
 import os
-import re
-import time
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Any, Optional
 
@@ -31,18 +29,20 @@ TARGET_LANGUAGES = {"Python", "TypeScript", "JavaScript", "Go", "Rust", "Java", 
 @dataclass
 class ReviewComment:
     """A single review comment on a PR."""
+
     comment_id: int
     reviewer: str
     body: str
-    path: Optional[str]        # File being reviewed
-    line: Optional[int]        # Line number
-    category: Optional[str]   # Inferred review category
-    actionable: bool           # Did code change in response?
+    path: Optional[str]  # File being reviewed
+    line: Optional[int]  # Line number
+    category: Optional[str]  # Inferred review category
+    actionable: bool  # Did code change in response?
 
 
 @dataclass
 class PullRequestData:
     """A GitHub PR with its review history and outcome."""
+
     repo: str
     pr_number: int
     title: str
@@ -58,15 +58,58 @@ class PullRequestData:
 
 
 REVIEW_TAXONOMY = {
-    "correctness_bug": ["bug", "incorrect", "wrong", "error", "off-by-one", "null pointer"],
-    "security": ["injection", "xss", "auth", "csrf", "secret", "password", "sql injection"],
-    "performance": ["slow", "n+1", "index", "cache", "memory leak", "inefficient", "complexity"],
-    "api_design": ["naming", "interface", "signature", "api", "contract", "backwards compat"],
+    "correctness_bug": [
+        "bug",
+        "incorrect",
+        "wrong",
+        "error",
+        "off-by-one",
+        "null pointer",
+    ],
+    "security": [
+        "injection",
+        "xss",
+        "auth",
+        "csrf",
+        "secret",
+        "password",
+        "sql injection",
+    ],
+    "performance": [
+        "slow",
+        "n+1",
+        "index",
+        "cache",
+        "memory leak",
+        "inefficient",
+        "complexity",
+    ],
+    "api_design": [
+        "naming",
+        "interface",
+        "signature",
+        "api",
+        "contract",
+        "backwards compat",
+    ],
     "test_coverage": ["test", "coverage", "assertion", "mock", "fixture", "edge case"],
     "documentation": ["comment", "docstring", "readme", "explain", "unclear"],
-    "error_handling": ["exception", "error handling", "try/catch", "failure", "graceful"],
+    "error_handling": [
+        "exception",
+        "error handling",
+        "try/catch",
+        "failure",
+        "graceful",
+    ],
     "type_safety": ["type", "typing", "mypy", "typescript", "cast", "any"],
-    "concurrency": ["race condition", "deadlock", "thread", "async", "lock", "concurrent"],
+    "concurrency": [
+        "race condition",
+        "deadlock",
+        "thread",
+        "async",
+        "lock",
+        "concurrent",
+    ],
     "code_style": ["style", "formatting", "convention", "lint", "whitespace"],
 }
 
@@ -126,7 +169,9 @@ class GitHubPRCrawler:
 
         for language in TARGET_LANGUAGES:
             page = 1
-            while len([r for r in repos if r.get("language") == language]) < per_language:
+            while (
+                len([r for r in repos if r.get("language") == language]) < per_language
+            ):
                 url = (
                     f"{GITHUB_API}/search/repositories"
                     f"?q=language:{language}+stars:>{self.min_stars}"
@@ -137,11 +182,13 @@ class GitHubPRCrawler:
                     break
 
                 for repo in data["items"]:
-                    repos.append({
-                        "full_name": repo["full_name"],
-                        "language": repo.get("language", language),
-                        "stars": repo["stargazers_count"],
-                    })
+                    repos.append(
+                        {
+                            "full_name": repo["full_name"],
+                            "language": repo.get("language", language),
+                            "stars": repo["stargazers_count"],
+                        }
+                    )
 
                 if len(data["items"]) < 100:
                     break
@@ -162,8 +209,10 @@ class GitHubPRCrawler:
             self._stats["repos"] += 1
 
             async with aiofiles.open(output_file, "w") as f:
-                for pr in prs[:self.max_prs_per_repo]:
-                    data = await self._get_pr_data(full_name, pr, repo.get("language", ""))
+                for pr in prs[: self.max_prs_per_repo]:
+                    data = await self._get_pr_data(
+                        full_name, pr, repo.get("language", "")
+                    )
                     if data:
                         await f.write(json.dumps(asdict(data)) + "\n")
                         self._stats["prs"] += 1
@@ -177,13 +226,17 @@ class GitHubPRCrawler:
             return []
         return [pr for pr in data if pr.get("merged_at")]
 
-    async def _get_pr_data(self, repo: str, pr: dict, language: str) -> Optional[PullRequestData]:
+    async def _get_pr_data(
+        self, repo: str, pr: dict, language: str
+    ) -> Optional[PullRequestData]:
         """Fetch full PR data including diff and reviews."""
         pr_number = pr["number"]
 
         # Fetch diff
         diff_url = f"{GITHUB_API}/repos/{repo}/pulls/{pr_number}"
-        diff_data = await self._fetch_json(diff_url, accept="application/vnd.github.v3.diff")
+        diff_data = await self._fetch_json(
+            diff_url, accept="application/vnd.github.v3.diff"
+        )
         diff = diff_data if isinstance(diff_data, str) else ""
 
         if not diff or len(diff) < 50:
@@ -201,15 +254,17 @@ class GitHubPRCrawler:
             if len(body) < 20:
                 continue
             category = self._infer_category(body)
-            review_comments.append(ReviewComment(
-                comment_id=c["id"],
-                reviewer=self._anonymize(c.get("user", {}).get("login", "")),
-                body=body,
-                path=c.get("path"),
-                line=c.get("line"),
-                category=category,
-                actionable=False,  # Will be updated by checking subsequent commits
-            ))
+            review_comments.append(
+                ReviewComment(
+                    comment_id=c["id"],
+                    reviewer=self._anonymize(c.get("user", {}).get("login", "")),
+                    body=body,
+                    path=c.get("path"),
+                    line=c.get("line"),
+                    category=category,
+                    actionable=False,  # Will be updated by checking subsequent commits
+                )
+            )
 
         if not review_comments:
             return None
@@ -220,6 +275,7 @@ class GitHubPRCrawler:
         merge_time_hours = None
         if created_at and merged_at:
             from datetime import datetime
+
             try:
                 created = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
                 merged = datetime.fromisoformat(merged_at.replace("Z", "+00:00"))
@@ -253,6 +309,7 @@ class GitHubPRCrawler:
     def _anonymize(self, username: str) -> str:
         """Anonymize GitHub username."""
         import hashlib
+
         return "user_" + hashlib.md5(username.encode()).hexdigest()[:8]
 
     def _headers(self) -> dict:
@@ -266,7 +323,9 @@ class GitHubPRCrawler:
         """Advance to the next API token (call once per rate-limit event)."""
         self._token_index += 1
 
-    async def _fetch_json(self, url: str, accept: Optional[str] = None) -> Optional[Any]:
+    async def _fetch_json(
+        self, url: str, accept: Optional[str] = None
+    ) -> Optional[Any]:
         """Fetch JSON (or text) from GitHub API with retry and rate limit handling."""
         for attempt in range(3):
             try:
@@ -293,13 +352,14 @@ class GitHubPRCrawler:
             except Exception as e:
                 if attempt == 2:
                     logger.debug(f"Failed: {url}: {e}")
-                await asyncio.sleep(2 ** attempt)
+                await asyncio.sleep(2**attempt)
         return None
 
 
 if __name__ == "__main__":
     import argparse
     from dotenv import load_dotenv
+
     load_dotenv()
 
     parser = argparse.ArgumentParser()
@@ -309,7 +369,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     tokens = [
-        t for t in [
+        t
+        for t in [
             os.getenv("GITHUB_TOKEN"),
             os.getenv("GITHUB_TOKEN_1"),
             os.getenv("GITHUB_TOKEN_2"),

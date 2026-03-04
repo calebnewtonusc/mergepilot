@@ -12,7 +12,7 @@ from typing import Optional
 import anthropic
 from loguru import logger
 
-from core.review_taxonomy import TAXONOMY, classify_review_comment, get_blocking_categories
+from core.review_taxonomy import TAXONOMY
 from core.impact_scorer import ImpactScorer
 from synthesis.prompts import MERGEPILOT_SYSTEM
 
@@ -20,6 +20,7 @@ from synthesis.prompts import MERGEPILOT_SYSTEM
 @dataclass
 class ReviewComment:
     """A single structured review comment."""
+
     category: str
     severity: str
     file_path: Optional[str]
@@ -34,6 +35,7 @@ class ReviewComment:
 @dataclass
 class CodeReview:
     """A complete code review for a PR."""
+
     pr_id: str
     overall_assessment: str  # "APPROVE" | "REQUEST_CHANGES" | "COMMENT"
     summary: str
@@ -63,7 +65,9 @@ class ReviewerAgent:
         self.model_path = model_path
         self.vllm_url = vllm_url
         self.backend = backend
-        self.vllm_model = vllm_model or os.getenv("MODEL_PATH", "Qwen/Qwen2.5-7B-Coder-Instruct")
+        self.vllm_model = vllm_model or os.getenv(
+            "MODEL_PATH", "Qwen/Qwen2.5-7B-Coder-Instruct"
+        )
         self._scorer = ImpactScorer()
 
         if backend == "claude":
@@ -171,6 +175,7 @@ class ReviewerAgent:
 
     def _call_vllm(self, prompt: str) -> Optional[str]:
         import httpx
+
         try:
             resp = httpx.post(
                 f"{self.vllm_url}/v1/chat/completions",
@@ -200,7 +205,9 @@ class ReviewerAgent:
         assessment = "COMMENT"
         if re.search(r"\bAPPROVE\b|\bLGTM\b|\bapprove\b", raw_review, re.IGNORECASE):
             assessment = "APPROVE"
-        elif re.search(r"REQUEST_CHANGES\b|blocking|critical", raw_review, re.IGNORECASE):
+        elif re.search(
+            r"REQUEST_CHANGES\b|blocking|critical", raw_review, re.IGNORECASE
+        ):
             assessment = "REQUEST_CHANGES"
 
         # Extract summary (first paragraph)
@@ -261,8 +268,12 @@ class ReviewerAgent:
             severity = cat_obj.severity if cat_obj else "optional"
 
             # Extract fields
-            obs_match = re.search(r"Observation:\s*(.+?)(?:\n|Issue:)", section, re.DOTALL)
-            issue_match = re.search(r"Issue:\s*(.+?)(?:\n|Suggestion:)", section, re.DOTALL)
+            obs_match = re.search(
+                r"Observation:\s*(.+?)(?:\n|Issue:)", section, re.DOTALL
+            )
+            issue_match = re.search(
+                r"Issue:\s*(.+?)(?:\n|Suggestion:)", section, re.DOTALL
+            )
             sug_match = re.search(r"Suggestion:\s*(.+?)(?:\n```|$)", section, re.DOTALL)
             code_match = re.search(r"```\w*\n(.*?)\n```", section, re.DOTALL)
 
@@ -276,17 +287,19 @@ class ReviewerAgent:
 
             impact = self._scorer.score_comment(section).total
 
-            comments.append(ReviewComment(
-                category=category,
-                severity=severity,
-                file_path=file_path,
-                line_number=line_number,
-                observation=observation,
-                issue=issue,
-                suggestion=suggestion,
-                code_example=code_example,
-                impact_score=impact,
-            ))
+            comments.append(
+                ReviewComment(
+                    category=category,
+                    severity=severity,
+                    file_path=file_path,
+                    line_number=line_number,
+                    observation=observation,
+                    issue=issue,
+                    suggestion=suggestion,
+                    code_example=code_example,
+                    impact_score=impact,
+                )
+            )
 
         return sorted(comments, key=lambda c: c.impact_score, reverse=True)
 

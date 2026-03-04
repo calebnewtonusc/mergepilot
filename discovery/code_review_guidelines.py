@@ -30,7 +30,7 @@ import json
 import os
 import re
 import time
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Optional
 
@@ -57,58 +57,98 @@ GUIDELINE_PATHS = [
 # High-quality repos by language with known good CONTRIBUTING guides
 SEED_REPOS = {
     "python": [
-        "psf/requests", "pallets/flask", "django/django",
-        "fastapi/fastapi", "pydantic/pydantic", "pytest-dev/pytest",
-        "encode/httpx", "tiangolo/sqlmodel", "sqlalchemy/sqlalchemy",
-        "celery/celery", "aio-libs/aiohttp", "python/cpython",
-        "numpy/numpy", "pandas-dev/pandas", "scikit-learn/scikit-learn",
-        "torvalds/linux", "pypa/pip", "python-poetry/poetry",
+        "psf/requests",
+        "pallets/flask",
+        "django/django",
+        "fastapi/fastapi",
+        "pydantic/pydantic",
+        "pytest-dev/pytest",
+        "encode/httpx",
+        "tiangolo/sqlmodel",
+        "sqlalchemy/sqlalchemy",
+        "celery/celery",
+        "aio-libs/aiohttp",
+        "python/cpython",
+        "numpy/numpy",
+        "pandas-dev/pandas",
+        "scikit-learn/scikit-learn",
+        "torvalds/linux",
+        "pypa/pip",
+        "python-poetry/poetry",
     ],
     "typescript": [
-        "microsoft/TypeScript", "microsoft/vscode", "vercel/next.js",
-        "facebook/react", "angular/angular", "vuejs/vue",
-        "sveltejs/svelte", "denoland/deno", "nicolo-ribaudo/babel",
-        "prisma/prisma", "trpc/trpc", "colinhacks/zod",
-        "supabase/supabase", "shadcn-ui/ui", "tailwindlabs/tailwindcss",
+        "microsoft/TypeScript",
+        "microsoft/vscode",
+        "vercel/next.js",
+        "facebook/react",
+        "angular/angular",
+        "vuejs/vue",
+        "sveltejs/svelte",
+        "denoland/deno",
+        "nicolo-ribaudo/babel",
+        "prisma/prisma",
+        "trpc/trpc",
+        "colinhacks/zod",
+        "supabase/supabase",
+        "shadcn-ui/ui",
+        "tailwindlabs/tailwindcss",
     ],
     "go": [
-        "golang/go", "kubernetes/kubernetes", "hashicorp/terraform",
-        "docker/docker", "gin-gonic/gin", "go-chi/chi",
-        "prometheus/prometheus", "grafana/grafana", "etcd-io/etcd",
-        "helm/helm", "cilium/cilium", "spf13/cobra",
+        "golang/go",
+        "kubernetes/kubernetes",
+        "hashicorp/terraform",
+        "docker/docker",
+        "gin-gonic/gin",
+        "go-chi/chi",
+        "prometheus/prometheus",
+        "grafana/grafana",
+        "etcd-io/etcd",
+        "helm/helm",
+        "cilium/cilium",
+        "spf13/cobra",
     ],
     "rust": [
-        "rust-lang/rust", "tokio-rs/tokio", "actix/actix-web",
-        "serde-rs/serde", "clap-rs/clap", "BurntSushi/ripgrep",
-        "sharkdp/fd", "starship/starship", "alacritty/alacritty",
+        "rust-lang/rust",
+        "tokio-rs/tokio",
+        "actix/actix-web",
+        "serde-rs/serde",
+        "clap-rs/clap",
+        "BurntSushi/ripgrep",
+        "sharkdp/fd",
+        "starship/starship",
+        "alacritty/alacritty",
     ],
     "java": [
-        "spring-projects/spring-framework", "apache/kafka",
-        "elastic/elasticsearch", "square/okhttp",
-        "google/guava", "ReactiveX/RxJava",
-        "junit-team/junit5", "hibernate/hibernate-orm",
+        "spring-projects/spring-framework",
+        "apache/kafka",
+        "elastic/elasticsearch",
+        "square/okhttp",
+        "google/guava",
+        "ReactiveX/RxJava",
+        "junit-team/junit5",
+        "hibernate/hibernate-orm",
     ],
 }
 
 # Review-related keywords for extraction
 REVIEW_KEYWORDS = re.compile(
-    r'\b(review|approve|lgtm|merge|pr|pull request|code review|'
-    r'reviewer|maintainer|contributor|codeowner)\b',
+    r"\b(review|approve|lgtm|merge|pr|pull request|code review|"
+    r"reviewer|maintainer|contributor|codeowner)\b",
     re.IGNORECASE,
 )
 STYLE_KEYWORDS = re.compile(
-    r'\b(style|format|lint|linter|prettier|black|eslint|gofmt|rustfmt|'
-    r'conventional commit|commit message|naming convention)\b',
+    r"\b(style|format|lint|linter|prettier|black|eslint|gofmt|rustfmt|"
+    r"conventional commit|commit message|naming convention)\b",
     re.IGNORECASE,
 )
 TESTING_KEYWORDS = re.compile(
-    r'\b(test|tests|testing|coverage|unit test|integration test|'
-    r'e2e|benchmark|ci|ci\/cd|github actions|passing)\b',
+    r"\b(test|tests|testing|coverage|unit test|integration test|"
+    r"e2e|benchmark|ci|ci\/cd|github actions|passing)\b",
     re.IGNORECASE,
 )
 MERGE_KEYWORDS = re.compile(
-    r'\b(merge|squash|rebase|fast.forward|approval|approvals|'
-    r'changelog|release note|breaking change|semver)\b',
+    r"\b(merge|squash|rebase|fast.forward|approval|approvals|"
+    r"changelog|release note|breaking change|semver)\b",
     re.IGNORECASE,
 )
 
@@ -116,6 +156,7 @@ MERGE_KEYWORDS = re.compile(
 @dataclass
 class ReviewGuidelines:
     """Parsed review guidelines from a single repository."""
+
     repo: str
     language: str
     stars: int
@@ -134,9 +175,9 @@ def _extract_bullet_points(content: str) -> list[str]:
     for line in content.splitlines():
         stripped = line.strip()
         # Match - item, * item, + item, 1. item
-        m = re.match(r'^[-*+]\s+(.+)$', stripped)
+        m = re.match(r"^[-*+]\s+(.+)$", stripped)
         if not m:
-            m = re.match(r'^\d+\.\s+(.+)$', stripped)
+            m = re.match(r"^\d+\.\s+(.+)$", stripped)
         if m:
             text = m.group(1).strip()
             # Filter out very short or very long items
@@ -152,22 +193,29 @@ def _extract_section(content: str, section_regex: re.Pattern) -> list[str]:
 
     for line in content.splitlines():
         # Check if this line starts a matching section heading
-        if re.search(r'^#{1,3}\s+', line):
+        if re.search(r"^#{1,3}\s+", line):
             in_section = bool(section_regex.search(line))
             continue
 
         if in_section:
             stripped = line.strip()
-            if stripped and not stripped.startswith('#'):
+            if stripped and not stripped.startswith("#"):
                 if section_regex.search(stripped) or len(stripped) > 30:
                     lines_in_section.append(stripped)
-            elif stripped.startswith('#'):
+            elif stripped.startswith("#"):
                 in_section = False
 
     return lines_in_section[:20]  # Cap at 20 items per section
 
 
-def parse_guidelines(content: str, repo: str, language: str, stars: int, source_url: str, source_file: str) -> ReviewGuidelines:
+def parse_guidelines(
+    content: str,
+    repo: str,
+    language: str,
+    stars: int,
+    source_url: str,
+    source_file: str,
+) -> ReviewGuidelines:
     """Parse a CONTRIBUTING.md into structured review guidelines."""
     all_bullets = _extract_bullet_points(content)
 
@@ -179,12 +227,20 @@ def parse_guidelines(content: str, repo: str, language: str, stars: int, source_
 
     # Fallback: extract sentences containing keywords
     if not review_standards:
-        sentences = re.split(r'[.!?]\s+', content)
-        review_standards = [s.strip() for s in sentences if REVIEW_KEYWORDS.search(s) and 30 < len(s.strip()) < 300][:10]
+        sentences = re.split(r"[.!?]\s+", content)
+        review_standards = [
+            s.strip()
+            for s in sentences
+            if REVIEW_KEYWORDS.search(s) and 30 < len(s.strip()) < 300
+        ][:10]
 
     if not testing_requirements:
-        sentences = re.split(r'[.!?]\s+', content)
-        testing_requirements = [s.strip() for s in sentences if TESTING_KEYWORDS.search(s) and 30 < len(s.strip()) < 300][:10]
+        sentences = re.split(r"[.!?]\s+", content)
+        testing_requirements = [
+            s.strip()
+            for s in sentences
+            if TESTING_KEYWORDS.search(s) and 30 < len(s.strip()) < 300
+        ][:10]
 
     return ReviewGuidelines(
         repo=repo,
@@ -238,7 +294,9 @@ class GuidelinesHarvester:
             h["Authorization"] = f"Bearer {self.token}"
         return h
 
-    async def _fetch_json(self, session: aiohttp.ClientSession, url: str, params: Optional[dict] = None) -> Optional[dict]:
+    async def _fetch_json(
+        self, session: aiohttp.ClientSession, url: str, params: Optional[dict] = None
+    ) -> Optional[dict]:
         """Fetch GitHub API JSON with rate limit handling."""
         for attempt in range(4):
             await asyncio.sleep(self.REQUEST_DELAY)
@@ -254,22 +312,26 @@ class GuidelinesHarvester:
                     elif resp.status in (403, 429):
                         remaining = int(resp.headers.get("X-RateLimit-Remaining", 1))
                         if remaining < 5:
-                            reset = int(resp.headers.get("X-RateLimit-Reset", time.time() + 60))
+                            reset = int(
+                                resp.headers.get("X-RateLimit-Reset", time.time() + 60)
+                            )
                             wait = max(1, reset - int(time.time())) + 5
                             logger.warning(f"Rate limited. Waiting {wait}s...")
                             await asyncio.sleep(wait)
                         else:
-                            await asyncio.sleep(2 ** attempt)
+                            await asyncio.sleep(2**attempt)
                     elif resp.status == 404:
                         return None
                     else:
-                        await asyncio.sleep(2 ** attempt)
+                        await asyncio.sleep(2**attempt)
             except Exception as e:
                 logger.debug(f"Fetch error {url}: {e}")
-                await asyncio.sleep(2 ** attempt)
+                await asyncio.sleep(2**attempt)
         return None
 
-    async def _fetch_raw(self, session: aiohttp.ClientSession, url: str) -> Optional[str]:
+    async def _fetch_raw(
+        self, session: aiohttp.ClientSession, url: str
+    ) -> Optional[str]:
         """Fetch raw file content."""
         for attempt in range(3):
             await asyncio.sleep(0.05)
@@ -287,10 +349,12 @@ class GuidelinesHarvester:
                         return None
             except Exception as e:
                 logger.debug(f"Raw fetch error: {e}")
-                await asyncio.sleep(2 ** attempt)
+                await asyncio.sleep(2**attempt)
         return None
 
-    async def _get_repo_info(self, session: aiohttp.ClientSession, repo: str) -> Optional[dict]:
+    async def _get_repo_info(
+        self, session: aiohttp.ClientSession, repo: str
+    ) -> Optional[dict]:
         """Get repository metadata (stars, default branch, language)."""
         url = f"{GITHUB_API}/repos/{repo}"
         return await self._fetch_json(session, url)
@@ -328,7 +392,9 @@ class GuidelinesHarvester:
 
             # Try each guideline file path
             for path in GUIDELINE_PATHS:
-                content = await self._fetch_guideline_file(session, owner, repo, branch, path)
+                content = await self._fetch_guideline_file(
+                    session, owner, repo, branch, path
+                )
                 if content and len(content) > 200:
                     source_url = f"https://github.com/{repo_slug}/blob/{branch}/{path}"
                     guidelines = parse_guidelines(
@@ -408,15 +474,21 @@ class GuidelinesHarvester:
                 output_file = self.output_dir / f"{language}.jsonl"
 
                 # Add search repos to fill up to target
-                remaining = max(0, self.target_count // len(self.languages) - len(seed_repos))
+                remaining = max(
+                    0, self.target_count // len(self.languages) - len(seed_repos)
+                )
                 search_repos = []
                 if remaining > 0:
-                    logger.info(f"Searching {remaining} more repos for language: {language}")
+                    logger.info(
+                        f"Searching {remaining} more repos for language: {language}"
+                    )
                     search_repos = await self._search_repos_by_language(
                         session, language, remaining
                     )
 
-                repos = list(dict.fromkeys(seed_repos + search_repos))  # deduplicate, preserve order
+                repos = list(
+                    dict.fromkeys(seed_repos + search_repos)
+                )  # deduplicate, preserve order
                 logger.info(f"Processing {len(repos)} repos for {language}")
 
                 for repo in repos:
@@ -439,13 +511,22 @@ class GuidelinesHarvester:
 if __name__ == "__main__":
     import argparse
     from dotenv import load_dotenv
+
     load_dotenv()
 
-    parser = argparse.ArgumentParser(description="Harvest GitHub CONTRIBUTING.md guidelines")
-    parser.add_argument("--count", type=int, default=1000, help="Target number of repos")
-    parser.add_argument("--langs", nargs="+", default=None,
-                        choices=list(SEED_REPOS.keys()),
-                        help="Languages to harvest (default: all)")
+    parser = argparse.ArgumentParser(
+        description="Harvest GitHub CONTRIBUTING.md guidelines"
+    )
+    parser.add_argument(
+        "--count", type=int, default=1000, help="Target number of repos"
+    )
+    parser.add_argument(
+        "--langs",
+        nargs="+",
+        default=None,
+        choices=list(SEED_REPOS.keys()),
+        help="Languages to harvest (default: all)",
+    )
     parser.add_argument("--output-dir", default="data/raw/guidelines")
     parser.add_argument("--workers", type=int, default=20)
     args = parser.parse_args()

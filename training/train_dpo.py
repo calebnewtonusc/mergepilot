@@ -13,9 +13,7 @@ Usage:
 
 import json
 import os
-import sys
 from pathlib import Path
-from dataclasses import dataclass, field
 from typing import Optional
 
 import torch
@@ -29,6 +27,7 @@ from trl import DPOConfig, DPOTrainer
 # ---------------------------------------------------------------------------
 # Dataset
 # ---------------------------------------------------------------------------
+
 
 class DPODataset:
     """Load and prepare DPO preference pairs for training."""
@@ -146,6 +145,7 @@ class DPODataset:
 # Callbacks
 # ---------------------------------------------------------------------------
 
+
 class DPOMetricsCallback(TrainerCallback):
     """Log DPO-specific metrics during training."""
 
@@ -166,6 +166,7 @@ class DPOMetricsCallback(TrainerCallback):
 # ---------------------------------------------------------------------------
 # Training
 # ---------------------------------------------------------------------------
+
 
 def train_dpo(
     base_model: str,
@@ -194,7 +195,9 @@ def train_dpo(
     # Load tokenizer and model
     # base_model may point to a PEFT adapter checkpoint (Stage 2 GRPO output).
     # Load the foundation model first, then overlay the PEFT adapter.
-    BASE_FOUNDATION_MODEL = os.environ.get("BASE_MODEL", "Qwen/Qwen2.5-7B-Coder-Instruct")
+    BASE_FOUNDATION_MODEL = os.environ.get(
+        "BASE_MODEL", "Qwen/Qwen2.5-7B-Coder-Instruct"
+    )
     tokenizer = AutoTokenizer.from_pretrained(base_model)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -225,7 +228,15 @@ def train_dpo(
     lora_config = LoraConfig(
         r=lora_rank,
         lora_alpha=lora_rank * 2,
-        target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+        target_modules=[
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "gate_proj",
+            "up_proj",
+            "down_proj",
+        ],
         lora_dropout=0.05,
         bias="none",
         task_type="CAUSAL_LM",
@@ -240,7 +251,9 @@ def train_dpo(
     train_dataset = split["train"]
     eval_dataset = split["test"]
 
-    logger.info(f"Train: {len(train_dataset):,} pairs, Eval: {len(eval_dataset):,} pairs")
+    logger.info(
+        f"Train: {len(train_dataset):,} pairs, Eval: {len(eval_dataset):,} pairs"
+    )
 
     # DPO config
     dpo_config = DPOConfig(
@@ -305,6 +318,7 @@ def train_dpo(
 if __name__ == "__main__":
     import argparse
     from dotenv import load_dotenv
+
     load_dotenv()
 
     parser = argparse.ArgumentParser()

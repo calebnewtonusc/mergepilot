@@ -7,17 +7,18 @@ Used for:
   - MergeBench evaluation by category
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 
 @dataclass
 class ReviewCategory:
     """A category in the review taxonomy."""
+
     id: str
     name: str
     description: str
-    severity: str   # "blocking", "suggestion", "optional"
+    severity: str  # "blocking", "suggestion", "optional"
     keywords: list[str]
     examples: list[str]
 
@@ -68,7 +69,13 @@ TAXONOMY: dict[str, ReviewCategory] = {
         name="XSS Vulnerability",
         description="User input rendered as HTML without escaping",
         severity="blocking",
-        keywords=["xss", "innerHTML", "dangerouslySetInnerHTML", "unescaped", "sanitize"],
+        keywords=[
+            "xss",
+            "innerHTML",
+            "dangerouslySetInnerHTML",
+            "unescaped",
+            "sanitize",
+        ],
         examples=["innerHTML set to user-controlled value"],
     ),
     "performance_n_plus_1": ReviewCategory(
@@ -232,13 +239,27 @@ def classify_review_comment(comment: str) -> str:
 
     # Check categories in priority order (blocking first)
     priority_order = [
-        "correctness_bug", "null_pointer", "security_injection",
-        "security_auth", "security_secrets", "security_xss",
-        "api_breaking_change", "error_handling", "concurrency",
-        "migration", "performance_n_plus_1", "performance_complexity",
-        "test_missing", "test_weak_assertion", "type_safety",
-        "api_naming", "code_duplication", "docs_missing",
-        "logging", "style_formatting", "general",
+        "correctness_bug",
+        "null_pointer",
+        "security_injection",
+        "security_auth",
+        "security_secrets",
+        "security_xss",
+        "api_breaking_change",
+        "error_handling",
+        "concurrency",
+        "migration",
+        "performance_n_plus_1",
+        "performance_complexity",
+        "test_missing",
+        "test_weak_assertion",
+        "type_safety",
+        "api_naming",
+        "code_duplication",
+        "docs_missing",
+        "logging",
+        "style_formatting",
+        "general",
     ]
 
     for cat_id in priority_order:

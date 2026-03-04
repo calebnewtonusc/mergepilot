@@ -11,16 +11,15 @@ Reward = 0.40 * merge_reward
        + 0.10 * scope_reward
 """
 
-import os
 import subprocess
 import tempfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import torch
 from datasets import Dataset
 from loguru import logger
-from peft import LoraConfig, PeftModel, get_peft_model
+from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import GRPOConfig, GRPOTrainer
 
@@ -73,11 +72,14 @@ def execute_tests_in_sandbox(
         # Copy repo to sandbox — strip trailing slash so cp -r places the
         # directory itself (not its contents) inside tmpdir.
         result = subprocess.run(
-            ["cp", "-r", repo_path.rstrip("/"), tmpdir],
-            capture_output=True, timeout=30
+            ["cp", "-r", repo_path.rstrip("/"), tmpdir], capture_output=True, timeout=30
         )
         if result.returncode != 0:
-            return {"test_passed": False, "regression_free": False, "error": "copy failed"}
+            return {
+                "test_passed": False,
+                "regression_free": False,
+                "error": "copy failed",
+            }
 
         repo_path_stripped = repo_path.rstrip("/")
         sandbox_path = Path(tmpdir) / Path(repo_path_stripped).name
@@ -88,10 +90,15 @@ def execute_tests_in_sandbox(
         patch_result = subprocess.run(
             ["patch", "-p1", "-i", str(diff_file)],
             cwd=str(sandbox_path),
-            capture_output=True, timeout=30
+            capture_output=True,
+            timeout=30,
         )
         if patch_result.returncode != 0:
-            return {"test_passed": False, "regression_free": False, "error": "patch failed"}
+            return {
+                "test_passed": False,
+                "regression_free": False,
+                "error": "patch failed",
+            }
 
         # Write new tests
         if test_code and language == "python":
@@ -102,23 +109,40 @@ def execute_tests_in_sandbox(
         test_passed = False
         if language == "python":
             test_result = subprocess.run(
-                ["python", "-m", "pytest", str(sandbox_path), "-x", "-q", "--timeout=30"],
-                capture_output=True, timeout=timeout, cwd=str(sandbox_path)
+                [
+                    "python",
+                    "-m",
+                    "pytest",
+                    str(sandbox_path),
+                    "-x",
+                    "-q",
+                    "--timeout=30",
+                ],
+                capture_output=True,
+                timeout=timeout,
+                cwd=str(sandbox_path),
             )
             test_passed = test_result.returncode == 0
         elif language in ("typescript", "javascript"):
             test_result = subprocess.run(
                 ["npm", "test", "--", "--passWithNoTests"],
-                capture_output=True, timeout=timeout, cwd=str(sandbox_path)
+                capture_output=True,
+                timeout=timeout,
+                cwd=str(sandbox_path),
             )
             test_passed = test_result.returncode == 0
 
         # Run regression tests (existing tests without the new test file)
-        if language == "python" and (sandbox_path / "test_mergepilot_generated.py").exists():
+        if (
+            language == "python"
+            and (sandbox_path / "test_mergepilot_generated.py").exists()
+        ):
             (sandbox_path / "test_mergepilot_generated.py").unlink()
         regression_result = subprocess.run(
             ["python", "-m", "pytest", str(sandbox_path), "-x", "-q", "--timeout=30"],
-            capture_output=True, timeout=timeout, cwd=str(sandbox_path)
+            capture_output=True,
+            timeout=timeout,
+            cwd=str(sandbox_path),
         )
         regression_free = regression_result.returncode == 0
 
@@ -151,6 +175,7 @@ def build_reward_function(config: RLTrainingConfig):
     Returns a reward function compatible with TRL's GRPOTrainer.
     Executes generated diffs in sandbox, runs tests, measures scope.
     """
+
     def _score_single_completion(completion: str, prompt: str) -> float:
         """Score a single completion string against its prompt."""
         metadata_list = getattr(_score_single_completion, "_metadata", [])
@@ -217,6 +242,7 @@ def load_rl_dataset(data_path: str) -> Dataset:
     Each example: {review_comment, file_context, repo_path, gold_diff, language}
     """
     import json
+
     examples = []
     if not Path(data_path).exists():
         raise FileNotFoundError(
@@ -276,7 +302,9 @@ def train(config: RLTrainingConfig):
     tokenizer.pad_token = tokenizer.eos_token
 
     logger.info(f"Loading SFT LoRA adapter from: {config.sft_checkpoint}")
-    model = PeftModel.from_pretrained(base_model, config.sft_checkpoint, is_trainable=True)
+    model = PeftModel.from_pretrained(
+        base_model, config.sft_checkpoint, is_trainable=True
+    )
     model.enable_input_require_grads()
 
     logger.info("Loading RL training dataset...")

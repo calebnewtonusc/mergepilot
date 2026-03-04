@@ -24,6 +24,7 @@ from synthesis.prompts import PR_GENERATION_SYSTEM, PR_GENERATION_USER
 @dataclass
 class PRGenerationResult:
     """Result of generating an improvement PR."""
+
     pr_id: str
     review_comment: str
     original_diff: str
@@ -102,11 +103,15 @@ class PRGenerator:
                             continue
         return prs
 
-    async def _generate_one(self, pr: dict, comment: dict) -> Optional[PRGenerationResult]:
+    async def _generate_one(
+        self, pr: dict, comment: dict
+    ) -> Optional[PRGenerationResult]:
         """Generate an improvement PR for one review comment."""
         async with self._semaphore:
             diff = pr.get("diff", "")
-            review_body = comment.get("body", "") if isinstance(comment, dict) else str(comment)
+            review_body = (
+                comment.get("body", "") if isinstance(comment, dict) else str(comment)
+            )
 
             if not diff or not review_body:
                 return None
@@ -116,7 +121,9 @@ class PRGenerator:
                 review_comment=review_body[:500],
             )
 
-            response = await self._call_llm(PR_GENERATION_SYSTEM, prompt, max_tokens=800)
+            response = await self._call_llm(
+                PR_GENERATION_SYSTEM, prompt, max_tokens=800
+            )
             if not response:
                 self._stats["failed"] += 1
                 return None
@@ -140,7 +147,10 @@ class PRGenerator:
         """Format as training conversation."""
         return {
             "conversations": [
-                {"role": "system", "content": "You are MergePilot. Implement the code review suggestion."},
+                {
+                    "role": "system",
+                    "content": "You are MergePilot. Implement the code review suggestion.",
+                },
                 {
                     "role": "user",
                     "content": f"Original change:\n```diff\n{result.original_diff}\n```\n\nReview: {result.review_comment}",
@@ -160,6 +170,7 @@ class PRGenerator:
     def _extract_diff(self, response: str) -> str:
         """Extract diff from response."""
         import re
+
         match = re.search(r"```diff\n(.*?)\n```", response, re.DOTALL)
         if match:
             return match.group(1)
@@ -168,7 +179,8 @@ class PRGenerator:
     def _extract_commit_message(self, response: str) -> str:
         """Extract commit message from response."""
         import re
-        match = re.search(r'(?:commit|fix):\s*(.+)', response, re.IGNORECASE)
+
+        match = re.search(r"(?:commit|fix):\s*(.+)", response, re.IGNORECASE)
         if match:
             return match.group(1).strip()[:100]
         return "fix: implement review suggestion"
@@ -178,7 +190,9 @@ class PRGenerator:
         if not diff:
             return False
         lines = diff.strip().split("\n")
-        has_additions = any(line.startswith("+") and not line.startswith("+++") for line in lines)
+        has_additions = any(
+            line.startswith("+") and not line.startswith("+++") for line in lines
+        )
         has_context = len(lines) >= 3
         return has_additions and has_context
 
@@ -200,6 +214,7 @@ class PRGenerator:
 if __name__ == "__main__":
     import argparse
     from dotenv import load_dotenv
+
     load_dotenv()
 
     parser = argparse.ArgumentParser()

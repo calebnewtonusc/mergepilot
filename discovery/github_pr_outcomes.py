@@ -70,7 +70,9 @@ def get_top_repos(
                 timeout=30,
             )
             if resp.status_code == 403:
-                wait = int(resp.headers.get("X-RateLimit-Reset", time.time() + 60)) - int(time.time())
+                wait = int(
+                    resp.headers.get("X-RateLimit-Reset", time.time() + 60)
+                ) - int(time.time())
                 logger.warning(f"Rate limited, waiting {wait}s...")
                 time.sleep(max(wait + 5, 5))
                 continue
@@ -84,12 +86,14 @@ def get_top_repos(
                 break
 
             for r in batch:
-                repos.append({
-                    "full_name": r["full_name"],
-                    "language": r.get("language"),
-                    "stars": r.get("stargazers_count", 0),
-                    "default_branch": r.get("default_branch", "main"),
-                })
+                repos.append(
+                    {
+                        "full_name": r["full_name"],
+                        "language": r.get("language"),
+                        "stars": r.get("stargazers_count", 0),
+                        "default_branch": r.get("default_branch", "main"),
+                    }
+                )
                 language_count += 1
                 if language_count >= per_language:
                     break
@@ -129,12 +133,14 @@ def get_merged_prs(
 
         for pr in batch:
             if pr.get("merged_at"):
-                prs.append({
-                    "number": pr["number"],
-                    "title": pr.get("title", ""),
-                    "body": pr.get("body", ""),
-                    "merged_at": pr.get("merged_at"),
-                })
+                prs.append(
+                    {
+                        "number": pr["number"],
+                        "title": pr.get("title", ""),
+                        "body": pr.get("body", ""),
+                        "merged_at": pr.get("merged_at"),
+                    }
+                )
         page += 1
         time.sleep(0.1)
 
@@ -210,7 +216,15 @@ def get_pr_review_comments(
 
 def has_test_files(diff: str) -> bool:
     """Check if the diff touches test files."""
-    test_indicators = ["test_", "_test.", ".spec.", "/test/", "/tests/", "/spec/", "test.java"]
+    test_indicators = [
+        "test_",
+        "_test.",
+        ".spec.",
+        "/test/",
+        "/tests/",
+        "/spec/",
+        "test.java",
+    ]
     for line in diff.splitlines():
         if line.startswith("+++ b/") or line.startswith("--- a/"):
             file_path = line[6:]
@@ -222,9 +236,12 @@ def has_test_files(diff: str) -> bool:
 def count_diff_lines(diff: str) -> int:
     """Count total added + removed lines in a diff."""
     return sum(
-        1 for line in diff.splitlines()
-        if line.startswith("+") and not line.startswith("+++")
-        or line.startswith("-") and not line.startswith("---")
+        1
+        for line in diff.splitlines()
+        if line.startswith("+")
+        and not line.startswith("+++")
+        or line.startswith("-")
+        and not line.startswith("---")
     )
 
 
@@ -324,7 +341,9 @@ def stream_pr_outcome_pairs(
                     for pair in pairs:
                         yield pair
                 except Exception as e:
-                    logger.debug(f"Failed to extract pairs from {repo}#{pr['number']}: {e}")
+                    logger.debug(
+                        f"Failed to extract pairs from {repo}#{pr['number']}: {e}"
+                    )
                     continue
 
                 time.sleep(0.05)  # Gentle rate limiting
@@ -387,13 +406,17 @@ if __name__ == "__main__":
                     if (
                         pair.get("pr_merged")
                         and pair.get("has_tests")
-                        and pair.get("n_approvals", 0) >= QUALITY_FILTERS["min_approvals"]
-                        and pair.get("diff_lines", 9999) <= QUALITY_FILTERS["max_diff_lines"]
+                        and pair.get("n_approvals", 0)
+                        >= QUALITY_FILTERS["min_approvals"]
+                        and pair.get("diff_lines", 9999)
+                        <= QUALITY_FILTERS["max_diff_lines"]
                     ):
                         fout.write(json.dumps(pair) + "\n")
                         count += 1
             logger.info(f"Filtered to {count} high-quality pairs")
         else:
-            fetch_pr_outcome_pairs(Path(output_dir), n_repos=repos, max_prs_per_repo=max_prs)
+            fetch_pr_outcome_pairs(
+                Path(output_dir), n_repos=repos, max_prs_per_repo=max_prs
+            )
 
     typer.run(main)

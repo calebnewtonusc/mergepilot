@@ -4,8 +4,7 @@ Fine-tunes Qwen2.5-7B-Coder-Instruct on ~400k (review_comment, diff, tests) trip
 Uses LoRA rank 64 with DeepSpeed ZeRO-3 across 18× A6000.
 """
 
-import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import torch
@@ -111,7 +110,9 @@ def format_training_example(example: dict, tokenizer=None) -> str:
     """
     messages = build_training_messages(example)
     if tokenizer is not None:
-        return tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
+        return tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=False
+        )
     # Fallback: manual Qwen2.5 chat template (kept for offline use)
     parts = []
     for msg in messages:
@@ -157,7 +158,10 @@ def load_all_training_data(config: SFTTrainingConfig, tokenizer=None) -> Dataset
 
     logger.info(f"Total training examples: {len(all_examples)}")
 
-    formatted = [{"text": format_training_example(ex, tokenizer=tokenizer)} for ex in all_examples]
+    formatted = [
+        {"text": format_training_example(ex, tokenizer=tokenizer)}
+        for ex in all_examples
+    ]
     return Dataset.from_list(formatted)
 
 
@@ -179,9 +183,15 @@ def train(config: SFTTrainingConfig):
         lora_dropout=config.lora_dropout,
         bias="none",
         task_type=TaskType.CAUSAL_LM,
-        target_modules=config.lora_target_modules or [
-            "q_proj", "k_proj", "v_proj", "o_proj",
-            "gate_proj", "up_proj", "down_proj"
+        target_modules=config.lora_target_modules
+        or [
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "gate_proj",
+            "up_proj",
+            "down_proj",
         ],
     )
     model = get_peft_model(model, lora_config)
@@ -193,7 +203,9 @@ def train(config: SFTTrainingConfig):
     split = full_dataset.train_test_split(test_size=0.02, seed=42)
     dataset = split["train"]
     eval_dataset = split["test"]
-    logger.info(f"Training on {len(dataset)} examples, evaluating on {len(eval_dataset)} examples")
+    logger.info(
+        f"Training on {len(dataset)} examples, evaluating on {len(eval_dataset)} examples"
+    )
 
     sft_config = SFTConfig(
         output_dir=config.output_dir,

@@ -24,6 +24,7 @@ from synthesis.prompts import PR_GENERATION_SYSTEM, PR_GENERATION_USER
 @dataclass
 class ImplementationResult:
     """Result of implementing a review comment."""
+
     pr_id: str
     original_diff: str
     review_comment: str
@@ -50,7 +51,9 @@ class PRAuthorAgent:
     ) -> None:
         self.vllm_url = vllm_url
         self.backend = backend
-        self.vllm_model = vllm_model or os.getenv("MODEL_PATH", "Qwen/Qwen2.5-7B-Coder-Instruct")
+        self.vllm_model = vllm_model or os.getenv(
+            "MODEL_PATH", "Qwen/Qwen2.5-7B-Coder-Instruct"
+        )
 
         if backend == "claude":
             _api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -181,6 +184,7 @@ class PRAuthorAgent:
 
     def _call_vllm(self, system: str, user: str, max_tokens: int) -> Optional[str]:
         import httpx
+
         try:
             resp = httpx.post(
                 f"{self.vllm_url}/v1/chat/completions",
@@ -215,7 +219,9 @@ class PRAuthorAgent:
 
     def _extract_commit_message(self, response: str) -> str:
         """Extract commit message from response."""
-        match = re.search(r"(?:commit|fix|feat|refactor):\s*(.+)", response, re.IGNORECASE)
+        match = re.search(
+            r"(?:commit|fix|feat|refactor):\s*(.+)", response, re.IGNORECASE
+        )
         if match:
             return match.group(0).strip()[:100]
         return "fix: implement review suggestion"
@@ -227,8 +233,7 @@ class PRAuthorAgent:
 
         lines = diff.strip().split("\n")
         has_additions = any(
-            line.startswith("+") and not line.startswith("+++")
-            for line in lines
+            line.startswith("+") and not line.startswith("+++") for line in lines
         )
         has_enough_lines = len(lines) >= 3
 
@@ -253,12 +258,8 @@ class PRAuthorAgent:
             confidence += 0.1
 
         # Check if diff contains words from the review
-        review_words = set(
-            w.lower() for w in re.findall(r"\b\w{4,}\b", review_comment)
-        )
-        diff_words = set(
-            w.lower() for w in re.findall(r"\b\w{4,}\b", diff)
-        )
+        review_words = set(w.lower() for w in re.findall(r"\b\w{4,}\b", review_comment))
+        diff_words = set(w.lower() for w in re.findall(r"\b\w{4,}\b", diff))
         overlap = len(review_words & diff_words) / max(len(review_words), 1)
         confidence += min(0.3, overlap * 0.3)
 

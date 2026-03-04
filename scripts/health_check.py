@@ -8,9 +8,7 @@ Checks:
 """
 
 import asyncio
-import json
 import sys
-from typing import Optional
 
 import aiohttp
 
@@ -34,7 +32,11 @@ async def check_api(session: aiohttp.ClientSession) -> dict:
         async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
             if resp.status == 200:
                 data = await resp.json()
-                return {"service": "api", "status": "healthy", "model": data.get("model", "unknown")}
+                return {
+                    "service": "api",
+                    "status": "healthy",
+                    "model": data.get("model", "unknown"),
+                }
             return {"service": "api", "status": f"http_{resp.status}"}
     except Exception as e:
         return {"service": "api", "status": "down", "error": str(e)[:50]}
@@ -44,6 +46,7 @@ def check_gpu_memory() -> list[dict]:
     """Check GPU memory usage."""
     try:
         import torch
+
         if not torch.cuda.is_available():
             return [{"error": "no GPU"}]
 
@@ -52,13 +55,15 @@ def check_gpu_memory() -> list[dict]:
             props = torch.cuda.get_device_properties(i)
             allocated = torch.cuda.memory_allocated(i) / 1024**3
             total = props.total_memory / 1024**3
-            gpus.append({
-                "index": i,
-                "name": props.name,
-                "allocated_gb": round(allocated, 1),
-                "total_gb": round(total, 1),
-                "utilization_pct": round(allocated / total * 100, 1),
-            })
+            gpus.append(
+                {
+                    "index": i,
+                    "name": props.name,
+                    "allocated_gb": round(allocated, 1),
+                    "total_gb": round(total, 1),
+                    "utilization_pct": round(allocated / total * 100, 1),
+                }
+            )
         return gpus
     except ImportError:
         return [{"error": "torch not installed"}]

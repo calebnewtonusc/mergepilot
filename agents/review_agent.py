@@ -13,7 +13,6 @@ Flow:
 Supports both GitHub App mode (webhook-triggered) and CLI mode (manual PR URL).
 """
 
-import json
 import os
 import subprocess
 import tempfile
@@ -26,6 +25,7 @@ from loguru import logger
 @dataclass
 class ReviewFix:
     """Result of the review agent's fix generation."""
+
     review_comment: str
     diff: str
     tests: str
@@ -60,7 +60,9 @@ class ReviewAgent:
             from transformers import AutoModelForCausalLM, AutoTokenizer
 
             logger.info(f"Loading MergePilot model from {self.model_path}")
-            base_model_name = os.environ.get("BASE_MODEL", "Qwen/Qwen2.5-7B-Coder-Instruct")
+            base_model_name = os.environ.get(
+                "BASE_MODEL", "Qwen/Qwen2.5-7B-Coder-Instruct"
+            )
             self._tokenizer = AutoTokenizer.from_pretrained(base_model_name)
             base = AutoModelForCausalLM.from_pretrained(
                 base_model_name,
@@ -71,7 +73,9 @@ class ReviewAgent:
             self._model.eval()
             logger.info("Model loaded successfully")
         except ImportError as e:
-            logger.warning(f"Model dependencies not installed: {e}. Using stub generation.")
+            logger.warning(
+                f"Model dependencies not installed: {e}. Using stub generation."
+            )
 
     def _generate(self, prompt: str, max_new_tokens: int = 2048) -> str:
         """Generate model completion for a prompt."""
@@ -82,6 +86,7 @@ class ReviewAgent:
             return "<think>Analyzing review comment...</think><diff>--- a/file.py\n+++ b/file.py\n@@ -1,3 +1,3 @@\n-old_line\n+new_line\n</diff><tests>def test_fix():\n    assert True\n</tests>"
 
         import torch
+
         inputs = self._tokenizer(prompt, return_tensors="pt").to(self._model.device)
         with torch.no_grad():
             outputs = self._model.generate(
@@ -91,7 +96,7 @@ class ReviewAgent:
                 do_sample=False,
                 pad_token_id=self._tokenizer.eos_token_id,
             )
-        generated = outputs[0][inputs["input_ids"].shape[1]:]
+        generated = outputs[0][inputs["input_ids"].shape[1] :]
         return self._tokenizer.decode(generated, skip_special_tokens=True)
 
     def _parse_completion(self, completion: str) -> dict:
@@ -99,11 +104,15 @@ class ReviewAgent:
         result = {"reasoning": "", "diff": "", "tests": ""}
 
         if "<think>" in completion and "</think>" in completion:
-            result["reasoning"] = completion.split("<think>")[1].split("</think>")[0].strip()
+            result["reasoning"] = (
+                completion.split("<think>")[1].split("</think>")[0].strip()
+            )
         if "<diff>" in completion and "</diff>" in completion:
             result["diff"] = completion.split("<diff>")[1].split("</diff>")[0].strip()
         if "<tests>" in completion and "</tests>" in completion:
-            result["tests"] = completion.split("<tests>")[1].split("</tests>")[0].strip()
+            result["tests"] = (
+                completion.split("<tests>")[1].split("</tests>")[0].strip()
+            )
 
         return result
 
@@ -147,6 +156,7 @@ Generate the minimal diff that addresses this review comment, plus tests that ve
         with tempfile.TemporaryDirectory() as tmpdir:
             # Use shutil.copytree so the contents of repo_path land in sandbox/ directly
             import shutil
+
             sandbox = Path(tmpdir) / "repo"
             shutil.copytree(repo_path, str(sandbox))
 
@@ -155,7 +165,9 @@ Generate the minimal diff that addresses this review comment, plus tests that ve
 
             patch_result = subprocess.run(
                 ["patch", "-p1", "-i", str(diff_file)],
-                cwd=str(sandbox), capture_output=True, timeout=30
+                cwd=str(sandbox),
+                capture_output=True,
+                timeout=30,
             )
             if patch_result.returncode != 0:
                 logger.warning("Sandbox: patch failed")
@@ -171,8 +183,10 @@ Generate the minimal diff that addresses this review comment, plus tests that ve
             }.get(language, ["python", "-m", "pytest", "-x", "-q"])
 
             result = subprocess.run(
-                test_cmd, cwd=str(sandbox),
-                capture_output=True, timeout=self.timeout_seconds
+                test_cmd,
+                cwd=str(sandbox),
+                capture_output=True,
+                timeout=self.timeout_seconds,
             )
             return result.returncode == 0
 
@@ -185,7 +199,11 @@ Generate the minimal diff that addresses this review comment, plus tests that ve
         """Build PR title and body from fix reasoning."""
         # Derive a concise title from the review comment
         first_sentence = review_comment.split(".")[0].strip()
-        title = f"fix: {first_sentence[:70].lower()}" if first_sentence else "fix: address review comment"
+        title = (
+            f"fix: {first_sentence[:70].lower()}"
+            if first_sentence
+            else "fix: address review comment"
+        )
 
         body = f"""## What this fixes
 
@@ -225,7 +243,8 @@ Generate the minimal diff that addresses this review comment, plus tests that ve
 
         def _count_diff_lines(d: str) -> int:
             return sum(
-                1 for l in d.splitlines()
+                1
+                for l in d.splitlines()
                 if (l.startswith("+") and not l.startswith("+++"))
                 or (l.startswith("-") and not l.startswith("---"))
             )
@@ -234,7 +253,9 @@ Generate the minimal diff that addresses this review comment, plus tests that ve
 
         # Scope discipline: reject oversized diffs
         if diff_lines > self.max_diff_lines:
-            logger.warning(f"Generated diff too large ({diff_lines} lines) — truncating")
+            logger.warning(
+                f"Generated diff too large ({diff_lines} lines) — truncating"
+            )
             diff_lines_list = diff.splitlines()
             # Keep only the first max_diff_lines changed lines
             kept = []
@@ -291,6 +312,7 @@ Generate the minimal diff that addresses this review comment, plus tests that ve
 
         # Create branch
         import hashlib
+
         branch_name = f"mergepilot/fix-{hashlib.sha256(fix['review_comment'].encode()).hexdigest()[:8]}"
 
         # Get base SHA
@@ -340,7 +362,9 @@ if __name__ == "__main__":
     def main(
         repo: str = typer.Option(..., help="GitHub repo (owner/repo)"),
         pr: int = typer.Option(..., help="PR number to review"),
-        model_path: str = typer.Option("./checkpoints/dpo", help="Path to trained model"),
+        model_path: str = typer.Option(
+            "./checkpoints/dpo", help="Path to trained model"
+        ),
         open_pr: bool = typer.Option(False, help="Open a PR with the fix"),
     ):
         """MergePilot: turn a review comment into a merged PR."""
@@ -348,6 +372,7 @@ if __name__ == "__main__":
 
         # Fetch review comments from the specified PR
         import httpx
+
         token = os.environ.get("GITHUB_TOKEN", "")
         headers = {"Authorization": f"token {token}"} if token else {}
 
@@ -381,7 +406,7 @@ if __name__ == "__main__":
                 language=language,
             )
 
-            print(f"\nGenerated fix:")
+            print("\nGenerated fix:")
             print(f"  Type: {fix['review_type']}")
             print(f"  Diff lines: {fix['diff_lines']}")
             print(f"  Sandbox passed: {fix['sandbox_passed']}")

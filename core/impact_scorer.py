@@ -12,31 +12,37 @@ import re
 from dataclasses import dataclass
 from typing import Optional
 
-from core.review_taxonomy import TAXONOMY, classify_review_comment, get_blocking_categories
+from core.review_taxonomy import (
+    TAXONOMY,
+    classify_review_comment,
+    get_blocking_categories,
+)
 
 
 @dataclass
 class ImpactScore:
     """Scored review comment."""
+
     comment: str
     category: str
-    specificity: float   # 0-1: does it cite location?
+    specificity: float  # 0-1: does it cite location?
     actionability: float  # 0-1: does it suggest a fix?
     severity_weight: float  # 1.0 blocking, 0.6 suggestion, 0.3 optional
-    educational: float   # 0-1: explains the why?
+    educational: float  # 0-1: explains the why?
     total: float
 
 
 @dataclass
 class DiffQualityMetrics:
     """Metrics for a code diff."""
+
     lines_added: int
     lines_removed: int
     files_changed: int
     has_tests: bool
     has_docs: bool
     complexity_delta: float  # estimated cyclomatic complexity change
-    coverage_delta: float    # estimated coverage change (-1.0 to +1.0)
+    coverage_delta: float  # estimated coverage change (-1.0 to +1.0)
 
 
 class ImpactScorer:
@@ -116,8 +122,7 @@ class ImpactScorer:
             for l in file_headers
         )
         has_docs = any(
-            re.search(r"README|\.md|docstring|\"\"\"", l, re.IGNORECASE)
-            for l in added
+            re.search(r"README|\.md|docstring|\"\"\"", l, re.IGNORECASE) for l in added
         )
 
         complexity_delta = self._estimate_complexity_delta(added, removed)
@@ -150,9 +155,7 @@ class ImpactScorer:
         comment_scores = [self.score_comment(c) for c in review_comments]
 
         blocking_cats = set(get_blocking_categories())
-        blocking_issues = sum(
-            1 for s in comment_scores if s.category in blocking_cats
-        )
+        blocking_issues = sum(1 for s in comment_scores if s.category in blocking_cats)
 
         return {
             "lines_added": diff_metrics.lines_added,
@@ -175,7 +178,9 @@ class ImpactScorer:
     def _score_specificity(self, comment: str) -> float:
         """Does the comment cite a specific location?"""
         score = 0.0
-        if re.search(r"(?:file|path|line|function|method|class)[\s:]+\S", comment, re.IGNORECASE):
+        if re.search(
+            r"(?:file|path|line|function|method|class)[\s:]+\S", comment, re.IGNORECASE
+        ):
             score += 0.5
         if re.search(r"```", comment):
             score += 0.3
@@ -215,7 +220,10 @@ class ImpactScorer:
     def _split_comments(self, review_text: str) -> list[str]:
         """Split a multi-comment review into individual comments."""
         # Split on category tags or double newlines
-        parts = re.split(r"\n{2,}|\[(?:CORRECTNESS|SECURITY|PERFORMANCE|API_DESIGN|TESTS|DOCS|ERROR_HANDLING|TYPE_SAFETY|STYLE|ARCHITECTURE)\]", review_text)
+        parts = re.split(
+            r"\n{2,}|\[(?:CORRECTNESS|SECURITY|PERFORMANCE|API_DESIGN|TESTS|DOCS|ERROR_HANDLING|TYPE_SAFETY|STYLE|ARCHITECTURE)\]",
+            review_text,
+        )
         return [p.strip() for p in parts if p.strip() and len(p.strip()) > 30]
 
     def _estimate_complexity_delta(self, added: list[str], removed: list[str]) -> float:
