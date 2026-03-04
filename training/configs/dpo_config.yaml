@@ -1,3 +1,4 @@
+---
 # MergePilot DPO Training Config
 # Stage 3: DPO on (minimal_diff, bloated_diff) preference pairs
 # Chosen = minimal diff that addresses the review comment exactly

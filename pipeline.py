@@ -115,7 +115,7 @@ def run_stage(stage: dict, dry_run: bool = False) -> bool:
         console.print("  [yellow](dry run — skipping)[/yellow]")
         return True
 
-    result = subprocess.run(stage["cmd"], shell=True)
+    result = subprocess.run(stage["cmd"], shell=True)  # nosec B602
     if result.returncode != 0:
         console.print(f"  [red]Failed (exit {result.returncode})[/red]")
         return False

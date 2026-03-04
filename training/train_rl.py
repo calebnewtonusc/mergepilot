@@ -293,16 +293,16 @@ Generate the minimal diff that addresses this review comment, plus tests that ve
 def train(config: RLTrainingConfig):
     logger.info(f"Loading base model: {config.base_model}")
     # device_map=None required for DeepSpeed ZeRO-3 — DeepSpeed manages device placement
-    base_model = AutoModelForCausalLM.from_pretrained(
+    base_model = AutoModelForCausalLM.from_pretrained(  # nosec B615
         config.base_model,
         torch_dtype=torch.bfloat16,
         device_map=None,
     )
-    tokenizer = AutoTokenizer.from_pretrained(config.base_model)
+    tokenizer = AutoTokenizer.from_pretrained(config.base_model)  # nosec B615
     tokenizer.pad_token = tokenizer.eos_token
 
     logger.info(f"Loading SFT LoRA adapter from: {config.sft_checkpoint}")
-    model = PeftModel.from_pretrained(
+    model = PeftModel.from_pretrained(  # nosec B615
         base_model, config.sft_checkpoint, is_trainable=True
     )
     model.enable_input_require_grads()

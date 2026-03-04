@@ -22,8 +22,8 @@ echo ""
 
 # Python
 PY_VER=$(python --version 2>&1 | awk '{print $2}')
-PY_MAJOR=$(echo $PY_VER | cut -d. -f1)
-PY_MINOR=$(echo $PY_VER | cut -d. -f2)
+PY_MAJOR=$(echo "$PY_VER" | cut -d. -f1)
+PY_MINOR=$(echo "$PY_VER" | cut -d. -f2)
 if [ "$PY_MAJOR" -ge 3 ] && [ "$PY_MINOR" -ge 11 ]; then
     check "Python >= 3.11" "ok"
 else

@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT"
 
-source .env 2>/dev/null || true
+[ -f .env ] && set -a && source .env && set +a || true
 
 # ─── Config ────────────────────────────────────────────────────────────────
 BASE_MODEL="${BASE_MODEL:-Qwen/Qwen2.5-Coder-7B-Instruct}"
@@ -46,22 +46,24 @@ sleep 30  # Wait for servers to initialize
 
 # ─── Step 3: Synthesize training data ──────────────────────────────────────
 step "Synthesizing code reviews"
+IFS=',' read -ra VLLM_ARRAY <<< "$VLLM_URLS"
 python -m synthesis.synthesize_bulk \
     --backend vllm \
-    --vllm-urls $(echo $VLLM_URLS | tr ',' ' ') \
+    --vllm-urls "${VLLM_ARRAY[@]}" \
     --workers 40
 
 step "Generating PR improvement pairs"
+IFS=',' read -ra VLLM_ARRAY <<< "$VLLM_URLS"
 python -m synthesis.pr_generator \
     --backend vllm \
-    --vllm-urls $(echo $VLLM_URLS | tr ',' ' ') \
+    --vllm-urls "${VLLM_ARRAY[@]}" \
     --workers 40
 
 step "Generating DPO preference pairs"
 python -m pipeline dpo-pairs
 
 # Kill synthesis vLLM servers
-kill $VLLM_PID 2>/dev/null || true
+kill "$VLLM_PID" 2>/dev/null || true
 
 # ─── Step 4: Prepare training data ─────────────────────────────────────────
 step "Preparing training data"
@@ -70,7 +72,7 @@ python -m pipeline prep
 # ─── Step 5: Stage 1 — SFT ─────────────────────────────────────────────────
 step "Stage 1: SFT Training"
 deepspeed \
-    --num_gpus $TRAIN_GPUS \
+    --num_gpus "$TRAIN_GPUS" \
     --master_port 29500 \
     training/train.py \
     --base-model "$BASE_MODEL" \
@@ -88,20 +90,20 @@ sleep 30
 # ─── Step 7: Stage 2 — GRPO RL ─────────────────────────────────────────────
 step "Stage 2: GRPO RL Training"
 deepspeed \
-    --num_gpus $TRAIN_GPUS \
+    --num_gpus "$TRAIN_GPUS" \
     --master_port 29501 \
     training/train_rl.py \
     --base-model "$STAGE1_OUT/merged" \
     --data-path "$DATA_SYN" \
     --output-dir "$STAGE2_OUT"
 
-kill $VLLM_RL_PID 2>/dev/null || true
+kill "$VLLM_RL_PID" 2>/dev/null || true
 log "Stage 2 complete: $STAGE2_OUT"
 
 # ─── Step 8: Stage 3 — DPO ─────────────────────────────────────────────────
 step "Stage 3: DPO Training"
 deepspeed \
-    --num_gpus $TRAIN_GPUS \
+    --num_gpus "$TRAIN_GPUS" \
     --master_port 29502 \
     training/train_dpo.py \
     --base-model "$STAGE2_OUT/merged" \

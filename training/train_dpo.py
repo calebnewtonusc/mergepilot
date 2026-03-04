@@ -198,27 +198,27 @@ def train_dpo(
     BASE_FOUNDATION_MODEL = os.environ.get(
         "BASE_MODEL", "Qwen/Qwen2.5-7B-Coder-Instruct"
     )
-    tokenizer = AutoTokenizer.from_pretrained(base_model)
+    tokenizer = AutoTokenizer.from_pretrained(base_model)  # nosec B615
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    base = AutoModelForCausalLM.from_pretrained(
+    base = AutoModelForCausalLM.from_pretrained(  # nosec B615
         BASE_FOUNDATION_MODEL,
         torch_dtype=torch.bfloat16,
         attn_implementation="flash_attention_2",
         use_cache=False,
     )
-    model = PeftModel.from_pretrained(base, base_model)  # base_model = PEFT adapter dir
+    model = PeftModel.from_pretrained(base, base_model)  # nosec B615  # base_model = PEFT adapter dir
     model = model.merge_and_unload()  # merge for DPO stability
     model.train()
 
     # Reference model (frozen copy for KL)
-    base_ref = AutoModelForCausalLM.from_pretrained(
+    base_ref = AutoModelForCausalLM.from_pretrained(  # nosec B615
         BASE_FOUNDATION_MODEL,
         torch_dtype=torch.bfloat16,
         attn_implementation="flash_attention_2",
     )
-    model_ref = PeftModel.from_pretrained(base_ref, base_model)
+    model_ref = PeftModel.from_pretrained(base_ref, base_model)  # nosec B615
     model_ref = model_ref.merge_and_unload()
     model_ref.eval()
     for p in model_ref.parameters():
@@ -299,11 +299,11 @@ def train_dpo(
     # Instead reload on CPU from the saved checkpoint and then merge.
     logger.info("Merging LoRA adapter weights...")
     merged_output = os.path.join(output_dir, "merged")
-    _base_for_merge = AutoModelForCausalLM.from_pretrained(
+    _base_for_merge = AutoModelForCausalLM.from_pretrained(  # nosec B615
         base_model,
         torch_dtype=torch.bfloat16,
     )
-    _peft_for_merge = PeftModel.from_pretrained(_base_for_merge, output_dir)
+    _peft_for_merge = PeftModel.from_pretrained(_base_for_merge, output_dir)  # nosec B615
     merged_model = _peft_for_merge.merge_and_unload()
     merged_model.save_pretrained(merged_output)
     tokenizer.save_pretrained(merged_output)

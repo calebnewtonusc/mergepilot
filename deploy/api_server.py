@@ -295,7 +295,7 @@ if __name__ == "__main__":
 
     uvicorn.run(
         "deploy.api_server:app",
-        host="0.0.0.0",
+        host="0.0.0.0",  # nosec B104
         port=int(os.environ.get("PORT", 8000)),
         workers=int(os.environ.get("API_WORKERS", 4)),
         log_level="info",

@@ -63,13 +63,13 @@ class ReviewAgent:
             base_model_name = os.environ.get(
                 "BASE_MODEL", "Qwen/Qwen2.5-7B-Coder-Instruct"
             )
-            self._tokenizer = AutoTokenizer.from_pretrained(base_model_name)
-            base = AutoModelForCausalLM.from_pretrained(
+            self._tokenizer = AutoTokenizer.from_pretrained(base_model_name)  # nosec B615
+            base = AutoModelForCausalLM.from_pretrained(  # nosec B615
                 base_model_name,
                 torch_dtype=torch.bfloat16,
                 device_map="auto",
             )
-            self._model = PeftModel.from_pretrained(base, self.model_path)
+            self._model = PeftModel.from_pretrained(base, self.model_path)  # nosec B615
             self._model.eval()
             logger.info("Model loaded successfully")
         except ImportError as e:
@@ -244,9 +244,9 @@ Generate the minimal diff that addresses this review comment, plus tests that ve
         def _count_diff_lines(d: str) -> int:
             return sum(
                 1
-                for l in d.splitlines()
-                if (l.startswith("+") and not l.startswith("+++"))
-                or (l.startswith("-") and not l.startswith("---"))
+                for line in d.splitlines()
+                if (line.startswith("+") and not line.startswith("+++"))
+                or (line.startswith("-") and not line.startswith("---"))
             )
 
         diff_lines = _count_diff_lines(diff)

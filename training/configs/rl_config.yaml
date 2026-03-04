@@ -1,3 +1,4 @@
+---
 # MergePilot RL Training Config
 # Stage 2: GRPO with merge-outcome + test + scope rewards
 # Reward = 0.40 * merge_reward + 0.35 * test_reward + 0.15 * regression_reward + 0.10 * scope_reward

@@ -350,10 +350,10 @@ def evaluate_agent(
             gold_diff = comment_data.get("gold_diff", "")
             gold_lines = len(
                 [
-                    l
-                    for l in gold_diff.splitlines()
-                    if (l.startswith("+") and not l.startswith("+++"))
-                    or (l.startswith("-") and not l.startswith("---"))
+                    line
+                    for line in gold_diff.splitlines()
+                    if (line.startswith("+") and not line.startswith("+++"))
+                    or (line.startswith("-") and not line.startswith("---"))
                 ]
             )
 
@@ -365,10 +365,10 @@ def evaluate_agent(
 
             gen_lines = len(
                 [
-                    l
-                    for l in diff.splitlines()
-                    if (l.startswith("+") and not l.startswith("+++"))
-                    or (l.startswith("-") and not l.startswith("---"))
+                    line
+                    for line in diff.splitlines()
+                    if (line.startswith("+") and not line.startswith("+++"))
+                    or (line.startswith("-") and not line.startswith("---"))
                 ]
             )
 

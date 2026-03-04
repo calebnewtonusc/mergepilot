@@ -113,16 +113,16 @@ class ImpactScorer:
     def score_diff(self, diff: str) -> DiffQualityMetrics:
         """Extract quality metrics from a code diff."""
         lines = diff.split("\n")
-        added = [l for l in lines if l.startswith("+") and not l.startswith("+++")]
-        removed = [l for l in lines if l.startswith("-") and not l.startswith("---")]
-        file_headers = [l for l in lines if l.startswith("+++")]
+        added = [line for line in lines if line.startswith("+") and not line.startswith("+++")]
+        removed = [line for line in lines if line.startswith("-") and not line.startswith("---")]
+        file_headers = [line for line in lines if line.startswith("+++")]
 
         has_tests = any(
-            re.search(r"test_|_test\.|spec\.|\.test\.", l, re.IGNORECASE)
-            for l in file_headers
+            re.search(r"test_|_test\.|spec\.|\.test\.", line, re.IGNORECASE)
+            for line in file_headers
         )
         has_docs = any(
-            re.search(r"README|\.md|docstring|\"\"\"", l, re.IGNORECASE) for l in added
+            re.search(r"README|\.md|docstring|\"\"\"", line, re.IGNORECASE) for line in added
         )
 
         complexity_delta = self._estimate_complexity_delta(added, removed)
@@ -235,6 +235,6 @@ class ImpactScorer:
         branch_pattern = re.compile(
             r"\b(?:if|elif|else|for|while|try|except|case|switch|&&|\|\|)\b"
         )
-        added_branches = sum(len(branch_pattern.findall(l)) for l in added)
-        removed_branches = sum(len(branch_pattern.findall(l)) for l in removed)
+        added_branches = sum(len(branch_pattern.findall(line)) for line in added)
+        removed_branches = sum(len(branch_pattern.findall(line)) for line in removed)
         return round((added_branches - removed_branches) * 0.1, 2)

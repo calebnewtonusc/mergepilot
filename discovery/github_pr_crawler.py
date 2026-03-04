@@ -310,7 +310,7 @@ class GitHubPRCrawler:
         """Anonymize GitHub username."""
         import hashlib
 
-        return "user_" + hashlib.md5(username.encode()).hexdigest()[:8]
+        return "user_" + hashlib.md5(username.encode(), usedforsecurity=False).hexdigest()[:8]
 
     def _headers(self) -> dict:
         token = self.tokens[self._token_index % len(self.tokens)]

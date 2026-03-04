@@ -1,3 +1,4 @@
+---
 # MergePilot SFT Training Config
 # Stage 1: Supervised Fine-Tuning on (code_diff, review_comment, improved_diff) pairs
 # Base: Qwen/Qwen2.5-7B-Coder-Instruct | LoRA r=64 | DeepSpeed ZeRO-3
