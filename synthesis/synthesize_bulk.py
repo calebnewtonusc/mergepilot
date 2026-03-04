@@ -94,8 +94,6 @@ class SynthesisPipeline:
     async def _synthesize_one(self, pr: dict) -> Optional[SynthesisResult]:
         """Synthesize a review for a single PR."""
         async with self._semaphore:
-            self._stats["processed"] += 1  # Track all attempted PRs, not just successes
-
             diff = pr.get("diff", "")
             if not diff or len(diff) < 100:
                 return None

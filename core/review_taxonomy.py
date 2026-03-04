@@ -242,7 +242,9 @@ def classify_review_comment(comment: str) -> str:
     ]
 
     for cat_id in priority_order:
-        cat = TAXONOMY[cat_id]
+        cat = TAXONOMY.get(cat_id)
+        if cat is None:
+            continue
         if any(kw in comment_lower for kw in cat.keywords):
             return cat_id
 

@@ -70,15 +70,17 @@ def execute_tests_in_sandbox(
     Returns {test_passed, regression_free, error}.
     """
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Copy repo to sandbox
+        # Copy repo to sandbox — strip trailing slash so cp -r places the
+        # directory itself (not its contents) inside tmpdir.
         result = subprocess.run(
-            ["cp", "-r", repo_path, tmpdir],
+            ["cp", "-r", repo_path.rstrip("/"), tmpdir],
             capture_output=True, timeout=30
         )
         if result.returncode != 0:
             return {"test_passed": False, "regression_free": False, "error": "copy failed"}
 
-        sandbox_path = Path(tmpdir) / Path(repo_path.rstrip("/")).name
+        repo_path_stripped = repo_path.rstrip("/")
+        sandbox_path = Path(tmpdir) / Path(repo_path_stripped).name
 
         # Apply diff
         diff_file = Path(tmpdir) / "patch.diff"
@@ -149,51 +151,54 @@ def build_reward_function(config: RLTrainingConfig):
     Returns a reward function compatible with TRL's GRPOTrainer.
     Executes generated diffs in sandbox, runs tests, measures scope.
     """
-    def reward_fn(prompts: list[str], completions: list[str], **kwargs) -> list[float]:
-        metadata_list = kwargs.get("metadata", [{} for _ in range(len(completions))])
+    def reward_fn(prompts: list[str], completions: list[list[str]], **kwargs) -> list[float]:
+        # completions shape: [num_prompts][num_generations]
+        # We must return a flat list of length num_prompts * num_generations.
+        metadata_list = kwargs.get("metadata", [{} for _ in range(len(prompts))])
         rewards = []
 
-        for i, (completion, prompt) in enumerate(zip(completions, prompts)):
+        for i, (completion_group, prompt) in enumerate(zip(completions, prompts)):
             meta = metadata_list[i % len(metadata_list)] if metadata_list and len(metadata_list) > 0 else {}
 
             repo_path = meta.get("repo_path", "")
             gold_diff = meta.get("gold_diff", "")
             language = meta.get("language", "python")
 
-            # Parse diff and tests from completion
-            diff = ""
-            tests = ""
-            if "<diff>" in completion and "</diff>" in completion:
-                diff = completion.split("<diff>")[1].split("</diff>")[0].strip()
-            if "<tests>" in completion and "</tests>" in completion:
-                tests = completion.split("<tests>")[1].split("</tests>")[0].strip()
+            for completion in completion_group:
+                # Parse diff and tests from completion
+                diff = ""
+                tests = ""
+                if "<diff>" in completion and "</diff>" in completion:
+                    diff = completion.split("<diff>")[1].split("</diff>")[0].strip()
+                if "<tests>" in completion and "</tests>" in completion:
+                    tests = completion.split("<tests>")[1].split("</tests>")[0].strip()
 
-            # Compute rewards
-            if repo_path and Path(repo_path).exists() and diff:
-                sandbox_result = execute_tests_in_sandbox(repo_path, diff, tests, language)
-                test_reward = 1.0 if sandbox_result["test_passed"] else 0.0
-                regression_reward = 1.0 if sandbox_result["regression_free"] else 0.0
-            else:
-                # No sandbox available — use proxy heuristics
-                test_reward = 0.5 if tests.strip() else 0.0
-                regression_reward = 0.5
+                # Compute rewards
+                if repo_path and Path(repo_path).exists() and diff:
+                    sandbox_result = execute_tests_in_sandbox(repo_path, diff, tests, language)
+                    test_reward = 1.0 if sandbox_result["test_passed"] else 0.0
+                    regression_reward = 1.0 if sandbox_result["regression_free"] else 0.0
+                else:
+                    # No sandbox available — use proxy heuristics
+                    test_reward = 0.5 if tests.strip() else 0.0
+                    regression_reward = 0.5
 
-            scope_reward = compute_scope_reward(diff, gold_diff) if gold_diff else 0.5
+                scope_reward = compute_scope_reward(diff, gold_diff) if gold_diff else 0.5
 
-            # Merge reward: proxy via diff quality heuristics when no real merger available
-            merge_reward = 0.6 if diff.strip() else 0.0
-            if diff and tests:
-                merge_reward = 0.8  # Higher confidence with tests present
-            if diff and tests and regression_reward == 1.0 and test_reward == 1.0:
-                merge_reward = 1.0
+                # Merge reward: proxy via diff quality heuristics when no real merger available
+                merge_reward = 0.6 if diff.strip() else 0.0
+                if diff and tests:
+                    merge_reward = 0.8  # Higher confidence with tests present
+                if diff and tests and regression_reward == 1.0 and test_reward == 1.0:
+                    merge_reward = 1.0
 
-            reward = (
-                config.merge_reward_weight * merge_reward
-                + config.test_reward_weight * test_reward
-                + config.regression_reward_weight * regression_reward
-                + config.scope_reward_weight * scope_reward
-            )
-            rewards.append(reward)
+                reward = (
+                    config.merge_reward_weight * merge_reward
+                    + config.test_reward_weight * test_reward
+                    + config.regression_reward_weight * regression_reward
+                    + config.scope_reward_weight * scope_reward
+                )
+                rewards.append(reward)
 
         return rewards
 

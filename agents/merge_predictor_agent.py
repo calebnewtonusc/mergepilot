@@ -58,9 +58,13 @@ class MergePredictorAgent:
         self._scorer = ImpactScorer()
 
         if backend == "claude":
-            self._claude = anthropic.Anthropic(
-                api_key=os.environ["ANTHROPIC_API_KEY"]
-            )
+            _api_key = os.environ.get("ANTHROPIC_API_KEY")
+            if not _api_key:
+                raise RuntimeError(
+                    "ANTHROPIC_API_KEY environment variable is not set. "
+                    "Export it before running: export ANTHROPIC_API_KEY=sk-ant-..."
+                )
+            self._claude = anthropic.Anthropic(api_key=_api_key)
             logger.info("MergePredictorAgent initialized with Claude backend")
         else:
             logger.info("MergePredictorAgent initialized with heuristic backend")

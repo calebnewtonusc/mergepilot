@@ -67,9 +67,13 @@ class ReviewerAgent:
         self._scorer = ImpactScorer()
 
         if backend == "claude":
-            self._claude = anthropic.Anthropic(
-                api_key=os.environ["ANTHROPIC_API_KEY"]
-            )
+            _api_key = os.environ.get("ANTHROPIC_API_KEY")
+            if not _api_key:
+                raise RuntimeError(
+                    "ANTHROPIC_API_KEY environment variable is not set. "
+                    "Export it before running: export ANTHROPIC_API_KEY=sk-ant-..."
+                )
+            self._claude = anthropic.Anthropic(api_key=_api_key)
             logger.info("ReviewerAgent initialized with Claude backend")
         else:
             logger.info(f"ReviewerAgent initialized with vLLM backend: {vllm_url}")
@@ -305,4 +309,9 @@ class ReviewerAgent:
         }
 
         tag_lower = tag.lower()
-        return mapping.get(tag_lower, classify_review_comment(tag_lower))
+        if tag_lower in mapping:
+            return mapping[tag_lower]
+        # If the tag itself is a known taxonomy ID use it directly;
+        # otherwise fall back to "general" (calling classify_review_comment
+        # with a single word produces unreliable keyword matches).
+        return tag_lower if tag_lower in TAXONOMY else "general"

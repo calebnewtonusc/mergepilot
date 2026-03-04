@@ -53,9 +53,13 @@ class PRAuthorAgent:
         self.vllm_model = vllm_model or os.getenv("MODEL_PATH", "Qwen/Qwen2.5-7B-Coder-Instruct")
 
         if backend == "claude":
-            self._claude = anthropic.Anthropic(
-                api_key=os.environ["ANTHROPIC_API_KEY"]
-            )
+            _api_key = os.environ.get("ANTHROPIC_API_KEY")
+            if not _api_key:
+                raise RuntimeError(
+                    "ANTHROPIC_API_KEY environment variable is not set. "
+                    "Export it before running: export ANTHROPIC_API_KEY=sk-ant-..."
+                )
+            self._claude = anthropic.Anthropic(api_key=_api_key)
             logger.info("PRAuthorAgent initialized with Claude backend")
 
     def implement(

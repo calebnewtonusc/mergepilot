@@ -27,7 +27,7 @@ import re
 import time
 from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Any, Iterator, Optional
 
 import aiofiles
 import aiohttp
@@ -151,7 +151,7 @@ class GitHubPRDiscovery:
         url: str,
         accept: str = "application/vnd.github.v3+json",
         retries: int = 0,
-    ) -> Optional[any]:
+    ) -> Optional[Any]:
         """Fetch a GitHub API URL with exponential backoff on rate limits."""
         await asyncio.sleep(self.REQUEST_DELAY)
         try:
@@ -291,7 +291,7 @@ class GitHubPRDiscovery:
         )
 
     def _has_test_files(self, diff: str) -> bool:
-        test_indicators = ["test_", "_test.", ".spec.", "/test/", "/tests/", "/spec/", "Test.java", "_spec.rb"]
+        test_indicators = ["test_", "_test.", ".spec.", "/test/", "/tests/", "/spec/", "test.java", "_spec.rb"]
         for line in diff.splitlines():
             if line.startswith("+++ b/") or line.startswith("--- a/"):
                 path = line[6:]

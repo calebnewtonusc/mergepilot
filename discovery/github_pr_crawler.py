@@ -15,7 +15,7 @@ import re
 import time
 from dataclasses import dataclass, asdict, field
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import aiofiles
 import aiohttp
@@ -257,13 +257,16 @@ class GitHubPRCrawler:
 
     def _headers(self) -> dict:
         token = self.tokens[self._token_index % len(self.tokens)]
-        self._token_index += 1
         headers = {"Accept": "application/vnd.github.v3+json"}
         if token:
             headers["Authorization"] = f"token {token}"
         return headers
 
-    async def _fetch_json(self, url: str, accept: Optional[str] = None) -> Optional[any]:
+    def _rotate_token(self) -> None:
+        """Advance to the next API token (call once per rate-limit event)."""
+        self._token_index += 1
+
+    async def _fetch_json(self, url: str, accept: Optional[str] = None) -> Optional[Any]:
         """Fetch JSON (or text) from GitHub API with retry and rate limit handling."""
         for attempt in range(3):
             try:
@@ -278,7 +281,8 @@ class GitHubPRCrawler:
                             return await resp.text()
                         return await resp.json()
                     elif resp.status == 403:
-                        # Rate limited
+                        # Rate limited — rotate to next token exactly once, then wait
+                        self._rotate_token()
                         retry_after = int(resp.headers.get("Retry-After", 60))
                         logger.warning(f"Rate limited. Waiting {retry_after}s...")
                         await asyncio.sleep(retry_after)

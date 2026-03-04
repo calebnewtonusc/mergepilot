@@ -180,9 +180,13 @@ class PRImprover:
         self._stats = {"total": 0, "success": 0, "failed": 0, "filtered": 0}
 
         if backend == "claude":
-            self._claude = anthropic.AsyncAnthropic(
-                api_key=os.environ["ANTHROPIC_API_KEY"]
-            )
+            _api_key = os.environ.get("ANTHROPIC_API_KEY")
+            if not _api_key:
+                raise RuntimeError(
+                    "ANTHROPIC_API_KEY environment variable is not set. "
+                    "Export it before running: export ANTHROPIC_API_KEY=sk-ant-..."
+                )
+            self._claude = anthropic.AsyncAnthropic(api_key=_api_key)
 
     async def _call_claude(self, user_prompt: str) -> Optional[str]:
         """Call Claude API."""
@@ -266,8 +270,9 @@ class PRImprover:
             except json.JSONDecodeError:
                 pass
 
-        # Extract object from anywhere in the response
-        obj_match = re.search(r'\{[^{}]*"minimal_diff"[^{}]*\}', response, re.DOTALL)
+        # Extract object from anywhere in the response — use .* with DOTALL so
+        # that values containing nested braces (e.g. code blocks) are matched.
+        obj_match = re.search(r'\{.*"minimal_diff".*\}', response, re.DOTALL)
         if obj_match:
             try:
                 return json.loads(obj_match.group(0))

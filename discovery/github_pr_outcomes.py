@@ -51,9 +51,12 @@ def get_top_repos(
     headers = get_github_headers(token)
     repos = []
 
+    per_language = max(1, n_repos // len(SUPPORTED_LANGUAGES))
+
     for language in SUPPORTED_LANGUAGES:
         page = 1
-        while len(repos) < n_repos:
+        language_count = 0
+        while language_count < per_language:
             resp = client.get(
                 "https://api.github.com/search/repositories",
                 params={
@@ -80,20 +83,21 @@ def get_top_repos(
             if not batch:
                 break
 
-            repos.extend([
-                {
+            for r in batch:
+                repos.append({
                     "full_name": r["full_name"],
                     "language": r.get("language"),
                     "stars": r.get("stargazers_count", 0),
                     "default_branch": r.get("default_branch", "main"),
-                }
-                for r in batch
-            ])
+                })
+                language_count += 1
+                if language_count >= per_language:
+                    break
+
+            if len(batch) < 100:
+                break
             page += 1
             time.sleep(0.5)  # Respect rate limits
-
-        if len(repos) >= n_repos:
-            break
 
     logger.info(f"Discovered {len(repos)} repositories")
     return repos[:n_repos]
@@ -206,7 +210,7 @@ def get_pr_review_comments(
 
 def has_test_files(diff: str) -> bool:
     """Check if the diff touches test files."""
-    test_indicators = ["test_", "_test.", ".spec.", "/test/", "/tests/", "/spec/", "Test.java"]
+    test_indicators = ["test_", "_test.", ".spec.", "/test/", "/tests/", "/spec/", "test.java"]
     for line in diff.splitlines():
         if line.startswith("+++ b/") or line.startswith("--- a/"):
             file_path = line[6:]
@@ -297,7 +301,6 @@ def stream_pr_outcome_pairs(
     Yields one pair at a time and writes to JSONL index.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
-    index_path = output_dir / "pr_pairs_index.jsonl"
 
     with httpx.Client(timeout=30) as client:
         for repo_meta in tqdm(repos, desc="Crawling repositories"):

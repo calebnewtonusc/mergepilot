@@ -202,25 +202,26 @@ def train(config: SFTTrainingConfig):
         learning_rate=config.learning_rate,
         warmup_ratio=config.warmup_ratio,
         lr_scheduler_type=config.lr_scheduler_type,
-        max_seq_length=config.max_seq_length,
         logging_steps=config.logging_steps,
         save_steps=config.save_steps,
+        eval_strategy="steps",
         eval_steps=config.eval_steps,
         bf16=True,
         gradient_checkpointing=True,
         deepspeed=str(Path(__file__).parent / "configs" / "ds_config.json"),
         report_to="wandb" if os.environ.get("WANDB_API_KEY") else "none",
         run_name="mergepilot-sft",
-        dataset_text_field="text",
-        packing=False,
     )
 
     trainer = SFTTrainer(
         model=model,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         train_dataset=dataset,
         eval_dataset=eval_dataset,
         args=sft_config,
+        dataset_text_field="text",
+        packing=False,
+        max_seq_length=config.max_seq_length,
     )
 
     logger.info("Starting SFT training...")

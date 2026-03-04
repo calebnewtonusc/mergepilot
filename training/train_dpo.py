@@ -21,7 +21,7 @@ from typing import Optional
 import torch
 from datasets import Dataset
 from loguru import logger
-from peft import LoraConfig, get_peft_model
+from peft import LoraConfig, PeftModel, get_peft_model
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainerCallback
 from trl import DPOConfig, DPOTrainer
 
@@ -264,7 +264,7 @@ def train_dpo(
         args=dpo_config,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         callbacks=[DPOMetricsCallback()],
     )
 
@@ -272,10 +272,17 @@ def train_dpo(
     trainer.save_model(output_dir)
     tokenizer.save_pretrained(output_dir)
 
-    # Merge LoRA weights
+    # Merge LoRA weights — calling merge_and_unload() directly on the trainer's
+    # model is unsafe under ZeRO-3 (weights may still be sharded across devices).
+    # Instead reload on CPU from the saved checkpoint and then merge.
     logger.info("Merging LoRA adapter weights...")
-    merged_model = trainer.model.merge_and_unload()
     merged_output = os.path.join(output_dir, "merged")
+    _base_for_merge = AutoModelForCausalLM.from_pretrained(
+        base_model,
+        torch_dtype=torch.bfloat16,
+    )
+    _peft_for_merge = PeftModel.from_pretrained(_base_for_merge, output_dir)
+    merged_model = _peft_for_merge.merge_and_unload()
     merged_model.save_pretrained(merged_output)
     tokenizer.save_pretrained(merged_output)
 

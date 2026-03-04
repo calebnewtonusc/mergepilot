@@ -223,7 +223,14 @@ Generate the minimal diff that addresses this review comment, plus tests that ve
         tests = parsed["tests"]
         reasoning = parsed["reasoning"]
 
-        diff_lines = len([l for l in diff.splitlines() if l.startswith(("+", "-"))])
+        def _count_diff_lines(d: str) -> int:
+            return sum(
+                1 for l in d.splitlines()
+                if (l.startswith("+") and not l.startswith("+++"))
+                or (l.startswith("-") and not l.startswith("---"))
+            )
+
+        diff_lines = _count_diff_lines(diff)
 
         # Scope discipline: reject oversized diffs
         if diff_lines > self.max_diff_lines:
@@ -239,6 +246,7 @@ Generate the minimal diff that addresses this review comment, plus tests that ve
                 if changed >= self.max_diff_lines:
                     break
             diff = "\n".join(kept)
+            diff_lines = _count_diff_lines(diff)
 
         sandbox_passed = self._run_sandbox_validation(repo_path, diff, tests, language)
 

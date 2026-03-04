@@ -45,6 +45,7 @@ class EngineeringBlogCrawler:
     def __init__(self, output_dir: Path | str) -> None:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self._session = None
 
     async def crawl_all(self) -> None:
         """Crawl all configured blog sources."""
