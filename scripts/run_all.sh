@@ -29,11 +29,11 @@ step() { log "━━━ STEP: $* ━━━"; }
 # ─── Step 1: Collect raw data ───────────────────────────────────────────────
 step "Collecting GitHub PRs"
 python -m discovery.github_pr_crawler \
-    --output-dir "$DATA_RAW/prs" \
-    --max-repos 500 \
-    --min-stars 1000 \
-    --languages Python TypeScript Go Rust Java \
-    --workers 16
+	--output-dir "$DATA_RAW/prs" \
+	--max-repos 500 \
+	--min-stars 1000 \
+	--languages Python TypeScript Go Rust Java \
+	--workers 16
 
 step "Crawling engineering blogs"
 python -m discovery.engineering_blog_crawler
@@ -42,22 +42,22 @@ python -m discovery.engineering_blog_crawler
 step "Starting vLLM synthesis servers"
 bash scripts/start_vllm.sh &
 VLLM_PID=$!
-sleep 30  # Wait for servers to initialize
+sleep 30 # Wait for servers to initialize
 
 # ─── Step 3: Synthesize training data ──────────────────────────────────────
 step "Synthesizing code reviews"
-IFS=',' read -ra VLLM_ARRAY <<< "$VLLM_URLS"
+IFS=',' read -ra VLLM_ARRAY <<<"$VLLM_URLS"
 python -m synthesis.synthesize_bulk \
-    --backend vllm \
-    --vllm-urls "${VLLM_ARRAY[@]}" \
-    --workers 40
+	--backend vllm \
+	--vllm-urls "${VLLM_ARRAY[@]}" \
+	--workers 40
 
 step "Generating PR improvement pairs"
-IFS=',' read -ra VLLM_ARRAY <<< "$VLLM_URLS"
+IFS=',' read -ra VLLM_ARRAY <<<"$VLLM_URLS"
 python -m synthesis.pr_generator \
-    --backend vllm \
-    --vllm-urls "${VLLM_ARRAY[@]}" \
-    --workers 40
+	--backend vllm \
+	--vllm-urls "${VLLM_ARRAY[@]}" \
+	--workers 40
 
 step "Generating DPO preference pairs"
 python -m pipeline dpo-pairs
@@ -72,12 +72,12 @@ python -m pipeline prep
 # ─── Step 5: Stage 1 — SFT ─────────────────────────────────────────────────
 step "Stage 1: SFT Training"
 deepspeed \
-    --num_gpus "$TRAIN_GPUS" \
-    --master_port 29500 \
-    training/train.py \
-    --base-model "$BASE_MODEL" \
-    --data-path "$DATA_SYN" \
-    --output-dir "$STAGE1_OUT"
+	--num_gpus "$TRAIN_GPUS" \
+	--master_port 29500 \
+	training/train.py \
+	--base-model "$BASE_MODEL" \
+	--data-path "$DATA_SYN" \
+	--output-dir "$STAGE1_OUT"
 
 log "Stage 1 complete: $STAGE1_OUT"
 
@@ -90,12 +90,12 @@ sleep 30
 # ─── Step 7: Stage 2 — GRPO RL ─────────────────────────────────────────────
 step "Stage 2: GRPO RL Training"
 deepspeed \
-    --num_gpus "$TRAIN_GPUS" \
-    --master_port 29501 \
-    training/train_rl.py \
-    --base-model "$STAGE1_OUT/merged" \
-    --data-path "$DATA_SYN" \
-    --output-dir "$STAGE2_OUT"
+	--num_gpus "$TRAIN_GPUS" \
+	--master_port 29501 \
+	training/train_rl.py \
+	--base-model "$STAGE1_OUT/merged" \
+	--data-path "$DATA_SYN" \
+	--output-dir "$STAGE2_OUT"
 
 kill "$VLLM_RL_PID" 2>/dev/null || true
 log "Stage 2 complete: $STAGE2_OUT"
@@ -103,12 +103,12 @@ log "Stage 2 complete: $STAGE2_OUT"
 # ─── Step 8: Stage 3 — DPO ─────────────────────────────────────────────────
 step "Stage 3: DPO Training"
 deepspeed \
-    --num_gpus "$TRAIN_GPUS" \
-    --master_port 29502 \
-    training/train_dpo.py \
-    --base-model "$STAGE2_OUT/merged" \
-    --data-dir "$DATA_SYN/dpo" \
-    --output-dir "$STAGE3_OUT"
+	--num_gpus "$TRAIN_GPUS" \
+	--master_port 29502 \
+	training/train_dpo.py \
+	--base-model "$STAGE2_OUT/merged" \
+	--data-dir "$DATA_SYN/dpo" \
+	--output-dir "$STAGE3_OUT"
 
 log "Stage 3 complete: $STAGE3_OUT"
 
@@ -119,7 +119,7 @@ cp -r "$STAGE3_OUT/merged" "$FINAL_OUT"
 # ─── Step 10: Evaluate ─────────────────────────────────────────────────────
 step "Running MergeBench evaluation"
 python -m pipeline eval \
-    --model-path "$FINAL_OUT" \
-    --output eval_results.json
+	--model-path "$FINAL_OUT" \
+	--output eval_results.json
 
 log "Pipeline complete! Results: eval_results.json"

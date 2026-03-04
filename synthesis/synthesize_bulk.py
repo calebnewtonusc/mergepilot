@@ -201,7 +201,8 @@ class SynthesisPipeline:
                 system=system,
                 messages=[{"role": "user", "content": user}],
             )
-            return resp.content[0].text
+            block = resp.content[0]
+            return block.text if hasattr(block, "text") else None
         except Exception as e:
             logger.debug(f"Claude error: {e}")
             return None

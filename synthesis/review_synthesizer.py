@@ -321,7 +321,8 @@ class ReviewSynthesizer:
                 messages=[{"role": "user", "content": user}],
                 temperature=0.3,
             )
-            return resp.content[0].text
+            block = resp.content[0]
+            return block.text if hasattr(block, "text") else None
         except Exception as e:
             logger.debug(f"Claude error: {e}")
             return None

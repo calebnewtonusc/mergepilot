@@ -300,7 +300,7 @@ class GitHubPRDiscovery:
         max_prs: int = 50,
     ) -> list[dict]:
         """Fetch closed PRs (both merged and rejected)."""
-        prs = []
+        prs: list[dict] = []
         page = 1
         while len(prs) < max_prs:
             url = f"{GITHUB_API}/repos/{repo}/pulls?state={state}&per_page=50&page={page}&sort=updated&direction=desc"

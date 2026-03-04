@@ -52,7 +52,7 @@ class EngineeringBlogCrawler:
     def __init__(self, output_dir: Path | str) -> None:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        self._session = None
+        self._session: Optional[aiohttp.ClientSession] = None
 
     async def crawl_all(self) -> None:
         """Crawl all configured blog sources."""
@@ -122,6 +122,8 @@ class EngineeringBlogCrawler:
         return principles[:10]
 
     async def _fetch(self, url: str) -> Optional[str]:
+        if self._session is None:
+            return None
         try:
             async with self._session.get(url) as resp:
                 if resp.status == 200:

@@ -168,7 +168,8 @@ class ReviewerAgent:
                 system=MERGEPILOT_SYSTEM,
                 messages=[{"role": "user", "content": prompt}],
             )
-            return resp.content[0].text
+            block = resp.content[0]
+            return block.text if hasattr(block, "text") else None
         except Exception as e:
             logger.error(f"Claude error: {e}")
             return None
