@@ -57,9 +57,10 @@ class SynthesisPipeline:
         self._vllm_index = 0
 
         if backend == "claude":
-            self._claude = anthropic.AsyncAnthropic(
-                api_key=os.environ["ANTHROPIC_API_KEY"]
-            )
+            _api_key = os.environ.get("ANTHROPIC_API_KEY")
+            if not _api_key:
+                raise RuntimeError("ANTHROPIC_API_KEY environment variable is not set.")
+            self._claude = anthropic.AsyncAnthropic(api_key=_api_key)
 
         self._stats = {"processed": 0, "success": 0, "failed": 0}
 
@@ -211,3 +212,26 @@ class SynthesisPipeline:
         except Exception as e:
             logger.debug(f"vLLM error: {e}")
         return None
+
+
+if __name__ == "__main__":
+    import argparse
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    parser = argparse.ArgumentParser(description="Bulk synthesis of code review training data")
+    parser.add_argument("--backend", choices=["claude", "vllm"], default="claude")
+    parser.add_argument("--vllm-urls", nargs="+", default=[])
+    parser.add_argument("--workers", type=int, default=20)
+    parser.add_argument("--output-dir", default="data/synthesized")
+    parser.add_argument("--raw-dir", default="data/raw")
+    args = parser.parse_args()
+
+    pipeline = SynthesisPipeline(
+        raw_dir=args.raw_dir,
+        output_dir=args.output_dir,
+        backend=args.backend,
+        vllm_urls=args.vllm_urls,
+        workers=args.workers,
+    )
+    asyncio.run(pipeline.synthesize_all())

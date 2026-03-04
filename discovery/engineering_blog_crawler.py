@@ -76,7 +76,7 @@ class EngineeringBlogCrawler:
         if not html:
             return []
 
-        soup = BeautifulSoup(html, "lxml")
+        soup = BeautifulSoup(html, "html.parser")
         posts = []
 
         # Extract main content

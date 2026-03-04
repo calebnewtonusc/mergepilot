@@ -185,6 +185,7 @@ def train(config: SFTTrainingConfig):
         ],
     )
     model = get_peft_model(model, lora_config)
+    model.enable_input_require_grads()
     model.print_trainable_parameters()
 
     full_dataset = load_all_training_data(config, tokenizer=tokenizer)
@@ -209,8 +210,10 @@ def train(config: SFTTrainingConfig):
         bf16=True,
         gradient_checkpointing=True,
         deepspeed=str(Path(__file__).parent / "configs" / "ds_config.json"),
-        report_to="wandb" if os.environ.get("WANDB_API_KEY") else "none",
+        report_to=[],
         run_name="mergepilot-sft",
+        dataset_text_field="text",
+        max_seq_length=config.max_seq_length,
     )
 
     trainer = SFTTrainer(
@@ -219,9 +222,7 @@ def train(config: SFTTrainingConfig):
         train_dataset=dataset,
         eval_dataset=eval_dataset,
         args=sft_config,
-        dataset_text_field="text",
         packing=False,
-        max_seq_length=config.max_seq_length,
     )
 
     logger.info("Starting SFT training...")

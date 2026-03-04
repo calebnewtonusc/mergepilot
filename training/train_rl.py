@@ -151,55 +151,61 @@ def build_reward_function(config: RLTrainingConfig):
     Returns a reward function compatible with TRL's GRPOTrainer.
     Executes generated diffs in sandbox, runs tests, measures scope.
     """
-    def reward_fn(prompts: list[str], completions: list[list[str]], **kwargs) -> list[float]:
-        # completions shape: [num_prompts][num_generations]
-        # We must return a flat list of length num_prompts * num_generations.
-        metadata_list = kwargs.get("metadata", [{} for _ in range(len(prompts))])
+    def _score_single_completion(completion: str, prompt: str) -> float:
+        """Score a single completion string against its prompt."""
+        metadata_list = getattr(_score_single_completion, "_metadata", [])
+        meta = {}
+        if metadata_list:
+            # Use a counter stored on the function to track index across calls
+            idx = getattr(_score_single_completion, "_call_idx", 0)
+            meta = metadata_list[idx % len(metadata_list)] if metadata_list else {}
+
+        repo_path = meta.get("repo_path", "")
+        gold_diff = meta.get("gold_diff", "")
+        language = meta.get("language", "python")
+
+        # Parse diff and tests from completion
+        diff = ""
+        tests = ""
+        if "<diff>" in completion and "</diff>" in completion:
+            diff = completion.split("<diff>")[1].split("</diff>")[0].strip()
+        if "<tests>" in completion and "</tests>" in completion:
+            tests = completion.split("<tests>")[1].split("</tests>")[0].strip()
+
+        # Compute rewards
+        if repo_path and Path(repo_path).exists() and diff:
+            sandbox_result = execute_tests_in_sandbox(repo_path, diff, tests, language)
+            test_reward = 1.0 if sandbox_result["test_passed"] else 0.0
+            regression_reward = 1.0 if sandbox_result["regression_free"] else 0.0
+        else:
+            # No sandbox available — use proxy heuristics
+            test_reward = 0.5 if tests.strip() else 0.0
+            regression_reward = 0.5
+
+        scope_reward = compute_scope_reward(diff, gold_diff) if gold_diff else 0.5
+
+        # Merge reward: proxy via diff quality heuristics when no real merger available
+        merge_reward = 0.6 if diff.strip() else 0.0
+        if diff and tests:
+            merge_reward = 0.8  # Higher confidence with tests present
+        if diff and tests and regression_reward == 1.0 and test_reward == 1.0:
+            merge_reward = 1.0
+
+        return (
+            config.merge_reward_weight * merge_reward
+            + config.test_reward_weight * test_reward
+            + config.regression_reward_weight * regression_reward
+            + config.scope_reward_weight * scope_reward
+        )
+
+    def reward_fn(prompts: list[str], completions: list[str], **kwargs) -> list[float]:
+        # TRL passes completions as a flat list[str], one per sample.
+        metadata_list = kwargs.get("metadata", [])
+        _score_single_completion._metadata = metadata_list
         rewards = []
-
-        for i, (completion_group, prompt) in enumerate(zip(completions, prompts)):
-            meta = metadata_list[i % len(metadata_list)] if metadata_list and len(metadata_list) > 0 else {}
-
-            repo_path = meta.get("repo_path", "")
-            gold_diff = meta.get("gold_diff", "")
-            language = meta.get("language", "python")
-
-            for completion in completion_group:
-                # Parse diff and tests from completion
-                diff = ""
-                tests = ""
-                if "<diff>" in completion and "</diff>" in completion:
-                    diff = completion.split("<diff>")[1].split("</diff>")[0].strip()
-                if "<tests>" in completion and "</tests>" in completion:
-                    tests = completion.split("<tests>")[1].split("</tests>")[0].strip()
-
-                # Compute rewards
-                if repo_path and Path(repo_path).exists() and diff:
-                    sandbox_result = execute_tests_in_sandbox(repo_path, diff, tests, language)
-                    test_reward = 1.0 if sandbox_result["test_passed"] else 0.0
-                    regression_reward = 1.0 if sandbox_result["regression_free"] else 0.0
-                else:
-                    # No sandbox available — use proxy heuristics
-                    test_reward = 0.5 if tests.strip() else 0.0
-                    regression_reward = 0.5
-
-                scope_reward = compute_scope_reward(diff, gold_diff) if gold_diff else 0.5
-
-                # Merge reward: proxy via diff quality heuristics when no real merger available
-                merge_reward = 0.6 if diff.strip() else 0.0
-                if diff and tests:
-                    merge_reward = 0.8  # Higher confidence with tests present
-                if diff and tests and regression_reward == 1.0 and test_reward == 1.0:
-                    merge_reward = 1.0
-
-                reward = (
-                    config.merge_reward_weight * merge_reward
-                    + config.test_reward_weight * test_reward
-                    + config.regression_reward_weight * regression_reward
-                    + config.scope_reward_weight * scope_reward
-                )
-                rewards.append(reward)
-
+        for completion, prompt in zip(completions, prompts):
+            reward = _score_single_completion(completion, prompt)
+            rewards.append(reward)
         return rewards
 
     return reward_fn
@@ -271,6 +277,7 @@ def train(config: RLTrainingConfig):
 
     logger.info(f"Loading SFT LoRA adapter from: {config.sft_checkpoint}")
     model = PeftModel.from_pretrained(base_model, config.sft_checkpoint, is_trainable=True)
+    model.enable_input_require_grads()
 
     logger.info("Loading RL training dataset...")
     dataset = load_rl_dataset(config.train_data_path)
@@ -289,8 +296,9 @@ def train(config: RLTrainingConfig):
         save_steps=config.save_steps,
         bf16=True,
         gradient_checkpointing=True,
-        report_to="wandb" if os.environ.get("WANDB_API_KEY") else "none",
+        report_to=[],
         run_name="mergepilot-rl-grpo",
+        deepspeed=str(Path(__file__).parent / "configs" / "ds_config_rl.json"),
     )
 
     trainer = GRPOTrainer(

@@ -58,9 +58,10 @@ class PRGenerator:
         self._vllm_index = 0
 
         if backend == "claude":
-            self._claude = anthropic.AsyncAnthropic(
-                api_key=os.environ["ANTHROPIC_API_KEY"]
-            )
+            _api_key = os.environ.get("ANTHROPIC_API_KEY")
+            if not _api_key:
+                raise RuntimeError("ANTHROPIC_API_KEY environment variable is not set.")
+            self._claude = anthropic.AsyncAnthropic(api_key=_api_key)
 
         self._stats = {"generated": 0, "failed": 0}
 

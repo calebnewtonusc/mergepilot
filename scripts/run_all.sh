@@ -74,7 +74,7 @@ deepspeed \
     --master_port 29500 \
     training/train.py \
     --base-model "$BASE_MODEL" \
-    --data-dir "$DATA_SYN" \
+    --data-path "$DATA_SYN" \
     --output-dir "$STAGE1_OUT"
 
 log "Stage 1 complete: $STAGE1_OUT"
@@ -92,7 +92,7 @@ deepspeed \
     --master_port 29501 \
     training/train_rl.py \
     --base-model "$STAGE1_OUT/merged" \
-    --data-dir "$DATA_SYN" \
+    --data-path "$DATA_SYN" \
     --output-dir "$STAGE2_OUT"
 
 kill $VLLM_RL_PID 2>/dev/null || true

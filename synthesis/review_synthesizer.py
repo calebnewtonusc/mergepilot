@@ -300,9 +300,10 @@ class ReviewSynthesizer:
         self._write_lock = asyncio.Lock()
 
         if backend == "claude":
-            self._claude = anthropic.AsyncAnthropic(
-                api_key=os.environ["ANTHROPIC_API_KEY"]
-            )
+            _api_key = os.environ.get("ANTHROPIC_API_KEY")
+            if not _api_key:
+                raise RuntimeError("ANTHROPIC_API_KEY environment variable is not set.")
+            self._claude = anthropic.AsyncAnthropic(api_key=_api_key)
 
         if generate_dpo:
             dpo_stem = self.output_path.stem + "_dpo"

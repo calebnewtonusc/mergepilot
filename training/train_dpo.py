@@ -192,23 +192,31 @@ def train_dpo(
     logger.info(f"beta={beta}, lr={learning_rate}, steps={max_steps}")
 
     # Load tokenizer and model
+    # base_model may point to a PEFT adapter checkpoint (Stage 2 GRPO output).
+    # Load the foundation model first, then overlay the PEFT adapter.
+    BASE_FOUNDATION_MODEL = os.environ.get("BASE_MODEL", "Qwen/Qwen2.5-7B-Coder-Instruct")
     tokenizer = AutoTokenizer.from_pretrained(base_model)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    model = AutoModelForCausalLM.from_pretrained(
-        base_model,
+    base = AutoModelForCausalLM.from_pretrained(
+        BASE_FOUNDATION_MODEL,
         torch_dtype=torch.bfloat16,
         attn_implementation="flash_attention_2",
         use_cache=False,
     )
+    model = PeftModel.from_pretrained(base, base_model)  # base_model = PEFT adapter dir
+    model = model.merge_and_unload()  # merge for DPO stability
+    model.train()
 
     # Reference model (frozen copy for KL)
-    model_ref = AutoModelForCausalLM.from_pretrained(
-        base_model,
+    base_ref = AutoModelForCausalLM.from_pretrained(
+        BASE_FOUNDATION_MODEL,
         torch_dtype=torch.bfloat16,
         attn_implementation="flash_attention_2",
     )
+    model_ref = PeftModel.from_pretrained(base_ref, base_model)
+    model_ref = model_ref.merge_and_unload()
     model_ref.eval()
     for p in model_ref.parameters():
         p.requires_grad = False
@@ -223,6 +231,7 @@ def train_dpo(
         task_type="CAUSAL_LM",
     )
     model = get_peft_model(model, lora_config)
+    model.enable_input_require_grads()
     model.print_trainable_parameters()
 
     # Load dataset
@@ -253,9 +262,9 @@ def train_dpo(
         save_steps=500,
         save_total_limit=2,
         remove_unused_columns=False,
-        report_to="wandb" if os.environ.get("WANDB_API_KEY") else "none",
+        report_to=[],
         run_name="mergepilot-dpo",
-        deepspeed="training/configs/ds_config.json",
+        deepspeed=str(Path(__file__).parent / "configs" / "ds_config.json"),
     )
 
     trainer = DPOTrainer(
