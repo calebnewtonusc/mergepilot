@@ -78,7 +78,7 @@ def execute_tests_in_sandbox(
         if result.returncode != 0:
             return {"test_passed": False, "regression_free": False, "error": "copy failed"}
 
-        sandbox_path = Path(tmpdir) / Path(repo_path).name
+        sandbox_path = Path(tmpdir) / Path(repo_path.rstrip("/")).name
 
         # Apply diff
         diff_file = Path(tmpdir) / "patch.diff"
@@ -154,7 +154,7 @@ def build_reward_function(config: RLTrainingConfig):
         rewards = []
 
         for i, (completion, prompt) in enumerate(zip(completions, prompts)):
-            meta = metadata_list[i % len(metadata_list)] if metadata_list else {}
+            meta = metadata_list[i % len(metadata_list)] if metadata_list and len(metadata_list) > 0 else {}
 
             repo_path = meta.get("repo_path", "")
             gold_diff = meta.get("gold_diff", "")
@@ -207,13 +207,11 @@ def load_rl_dataset(data_path: str) -> Dataset:
     """
     import json
     examples = []
-    try:
-        f_handle = open(data_path)
-    except FileNotFoundError:
+    if not Path(data_path).exists():
         raise FileNotFoundError(
             f"Training data not found at {data_path}. Run synthesis stage first."
         )
-    with f_handle as f:
+    with open(data_path) as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -257,10 +255,11 @@ Generate the minimal diff that addresses this review comment, plus tests that ve
 
 def train(config: RLTrainingConfig):
     logger.info(f"Loading base model: {config.base_model}")
+    # device_map=None required for DeepSpeed ZeRO-3 — DeepSpeed manages device placement
     base_model = AutoModelForCausalLM.from_pretrained(
         config.base_model,
         torch_dtype=torch.bfloat16,
-        device_map="auto",
+        device_map=None,
     )
     tokenizer = AutoTokenizer.from_pretrained(config.base_model)
     tokenizer.pad_token = tokenizer.eos_token
@@ -284,6 +283,7 @@ def train(config: RLTrainingConfig):
         logging_steps=config.logging_steps,
         save_steps=config.save_steps,
         bf16=True,
+        gradient_checkpointing=True,
         report_to="wandb" if os.environ.get("WANDB_API_KEY") else "none",
         run_name="mergepilot-rl-grpo",
     )

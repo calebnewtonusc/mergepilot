@@ -63,8 +63,8 @@ Always structure your response as:
 """
 
 
-def format_training_example(example: dict) -> str:
-    """Format a synthesized review-to-PR pair into a training message."""
+def build_training_messages(example: dict) -> list[dict]:
+    """Build conversation messages for a synthesized review-to-PR pair."""
     repo = example.get("repo", "owner/repo")
     language = example.get("language", "python")
     review_comment = example.get("review_comment", "")
@@ -96,10 +96,30 @@ Generate the minimal diff that addresses this review comment, plus tests that ve
 {tests}
 </tests>"""
 
-    return f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n<|im_start|>user\n{user_msg}<|im_end|>\n<|im_start|>assistant\n{assistant_msg}<|im_end|>"
+    return [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_msg},
+        {"role": "assistant", "content": assistant_msg},
+    ]
 
 
-def load_all_training_data(config: SFTTrainingConfig) -> Dataset:
+def format_training_example(example: dict, tokenizer=None) -> str:
+    """Format a synthesized review-to-PR pair into a training message.
+
+    Uses tokenizer.apply_chat_template() when available to match inference format.
+    Falls back to manual Qwen2.5 template if no tokenizer is provided.
+    """
+    messages = build_training_messages(example)
+    if tokenizer is not None:
+        return tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
+    # Fallback: manual Qwen2.5 chat template (kept for offline use)
+    parts = []
+    for msg in messages:
+        parts.append(f"<|im_start|>{msg['role']}\n{msg['content']}<|im_end|>")
+    return "\n".join(parts)
+
+
+def load_all_training_data(config: SFTTrainingConfig, tokenizer=None) -> Dataset:
     """
     Load and combine all training streams from data/training/*.jsonl.
 
@@ -118,20 +138,26 @@ def load_all_training_data(config: SFTTrainingConfig) -> Dataset:
                 f"No *.jsonl files found in {data_path}. Run synthesis pipeline first."
             )
         for jsonl_file in jsonl_files:
-            with open(jsonl_file) as f:
-                examples = [json.loads(line) for line in f if line.strip()]
-            logger.info(f"Loaded {len(examples)} examples from {jsonl_file}")
-            all_examples.extend(examples)
+            try:
+                with open(jsonl_file) as f:
+                    examples = [json.loads(line) for line in f if line.strip()]
+                logger.info(f"Loaded {len(examples)} examples from {jsonl_file}")
+                all_examples.extend(examples)
+            except OSError as e:
+                logger.warning(f"Skipping {jsonl_file}: {e}")
     elif data_path.is_file():
-        with open(data_path) as f:
-            all_examples = [json.loads(line) for line in f if line.strip()]
-        logger.info(f"Loaded {len(all_examples)} examples from {data_path}")
+        try:
+            with open(data_path) as f:
+                all_examples = [json.loads(line) for line in f if line.strip()]
+            logger.info(f"Loaded {len(all_examples)} examples from {data_path}")
+        except OSError as e:
+            logger.warning(f"Could not read {data_path}: {e}")
     else:
         logger.warning(f"Training data path not found: {data_path}")
 
     logger.info(f"Total training examples: {len(all_examples)}")
 
-    formatted = [{"text": format_training_example(ex)} for ex in all_examples]
+    formatted = [{"text": format_training_example(ex, tokenizer=tokenizer)} for ex in all_examples]
     return Dataset.from_list(formatted)
 
 
@@ -161,8 +187,12 @@ def train(config: SFTTrainingConfig):
     model = get_peft_model(model, lora_config)
     model.print_trainable_parameters()
 
-    dataset = load_all_training_data(config)
-    logger.info(f"Training on {len(dataset)} examples")
+    full_dataset = load_all_training_data(config, tokenizer=tokenizer)
+    logger.info(f"Loaded {len(full_dataset)} total examples")
+    split = full_dataset.train_test_split(test_size=0.02, seed=42)
+    dataset = split["train"]
+    eval_dataset = split["test"]
+    logger.info(f"Training on {len(dataset)} examples, evaluating on {len(eval_dataset)} examples")
 
     sft_config = SFTConfig(
         output_dir=config.output_dir,
@@ -178,7 +208,7 @@ def train(config: SFTTrainingConfig):
         eval_steps=config.eval_steps,
         bf16=True,
         gradient_checkpointing=True,
-        deepspeed="training/configs/ds_config.json",
+        deepspeed=str(Path(__file__).parent / "configs" / "ds_config.json"),
         report_to="wandb" if os.environ.get("WANDB_API_KEY") else "none",
         run_name="mergepilot-sft",
         dataset_text_field="text",
@@ -189,6 +219,7 @@ def train(config: SFTTrainingConfig):
         model=model,
         tokenizer=tokenizer,
         train_dataset=dataset,
+        eval_dataset=eval_dataset,
         args=sft_config,
     )
 

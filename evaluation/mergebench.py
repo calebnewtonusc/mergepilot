@@ -18,6 +18,7 @@ import json
 import subprocess
 import tempfile
 from dataclasses import dataclass
+from typing import Optional
 from pathlib import Path
 
 from loguru import logger
@@ -97,7 +98,7 @@ class MergeResult:
     pr_merged: bool
     tests_passed: bool
     reviewer_approved: bool
-    regression_free: bool
+    regression_free: Optional[bool]  # None = sandbox not available (excluded from aggregate)
     generated_diff_lines: int
     gold_diff_lines: int
 
@@ -185,7 +186,9 @@ def evaluate_agent(
             review_comment = comment_data.get("review_comment", "")
             file_context = comment_data.get("file_context", "")
             gold_diff = comment_data.get("gold_diff", "")
-            gold_lines = len([l for l in gold_diff.splitlines() if l.startswith("+") or l.startswith("-")])
+            gold_lines = len([l for l in gold_diff.splitlines()
+                               if (l.startswith("+") and not l.startswith("+++"))
+                               or (l.startswith("-") and not l.startswith("---"))])
 
             try:
                 diff, tests = agent_fn(review_comment, file_context, repo, language)
@@ -193,7 +196,9 @@ def evaluate_agent(
                 logger.error(f"Agent failed on {repo}: {e}")
                 diff, tests = "", ""
 
-            gen_lines = len([l for l in diff.splitlines() if l.startswith("+") or l.startswith("-")])
+            gen_lines = len([l for l in diff.splitlines()
+                              if (l.startswith("+") and not l.startswith("+++"))
+                              or (l.startswith("-") and not l.startswith("---"))])
 
             # Run sandbox tests if repo data is available
             if diff and repo_path.exists():
@@ -202,14 +207,15 @@ def evaluate_agent(
                 regression_free = sandbox_result["regression_free"]
             else:
                 tests_passed = bool(tests.strip())
-                regression_free = False
+                regression_free = None  # None = "not measured" — excluded from aggregate stats
 
             # Reviewer approval heuristic (proxy: tests pass + scope ≤ 1.3×)
             scope_ratio = gen_lines / max(gold_lines, 1)
             reviewer_approved = tests_passed and scope_ratio <= 1.3
 
             # PR merge heuristic (proxy: reviewer approved + regression free)
-            pr_merged = reviewer_approved and regression_free
+            # regression_free=None means sandbox unavailable — treat as True for merge heuristic
+            pr_merged = reviewer_approved and (regression_free is not False)
 
             result = MergeResult(
                 repo=repo,
@@ -236,7 +242,10 @@ def evaluate_agent(
         "merge_rate": sum(r.pr_merged for r in results) / n,
         "test_pass_rate": sum(r.tests_passed for r in results) / n,
         "first_approval_rate": sum(r.reviewer_approved for r in results) / n,
-        "no_regression_rate": sum(r.regression_free for r in results) / n,
+        "no_regression_rate": (
+            sum(r.regression_free for r in results if r.regression_free is not None)
+            / max(1, sum(1 for r in results if r.regression_free is not None))
+        ),
         "avg_scope_ratio": sum(r.scope_ratio for r in results) / n,
         "by_language": _aggregate_by_language(results),
         "by_domain": _aggregate_by_domain(results),

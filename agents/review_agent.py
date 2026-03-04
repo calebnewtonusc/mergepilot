@@ -145,8 +145,10 @@ Generate the minimal diff that addresses this review comment, plus tests that ve
             return bool(tests.strip())  # Optimistic: trust tests exist
 
         with tempfile.TemporaryDirectory() as tmpdir:
+            # Use shutil.copytree so the contents of repo_path land in sandbox/ directly
+            import shutil
             sandbox = Path(tmpdir) / "repo"
-            subprocess.run(["cp", "-r", repo_path, str(sandbox)], capture_output=True)
+            shutil.copytree(repo_path, str(sandbox))
 
             diff_file = Path(tmpdir) / "fix.patch"
             diff_file.write_text(diff)
@@ -280,7 +282,8 @@ Generate the minimal diff that addresses this review comment, plus tests that ve
         import httpx
 
         # Create branch
-        branch_name = f"mergepilot/fix-{hash(fix['review_comment']) % 100000:05d}"
+        import hashlib
+        branch_name = f"mergepilot/fix-{hashlib.sha256(fix['review_comment'].encode()).hexdigest()[:8]}"
 
         # Get base SHA
         resp = httpx.get(

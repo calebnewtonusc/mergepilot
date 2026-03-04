@@ -127,19 +127,19 @@ class DPODataset:
 
     def _create_synthetic_pairs(self) -> list[dict]:
         """Synthetic fallback pairs for testing."""
-        return [
-            {
-                "prompt": "Please review this code:\n```diff\n+def get_user(id):\n+    return db.query(f'SELECT * FROM users WHERE id={id}')\n```",
-                "chosen": (
-                    "[SECURITY] File: api/users.py, Line: 2\n"
-                    "Observation: SQL query built with f-string interpolation.\n"
-                    "Issue: This allows SQL injection — an attacker can pass `1 OR 1=1` as id.\n"
-                    "Suggestion: Use parameterized queries.\n"
-                    "Example:\n```python\ndb.query('SELECT * FROM users WHERE id = %s', (id,))\n```"
-                ),
-                "rejected": "This might have some issues. Consider refactoring this function.",
-            }
-        ] * 10
+        synthetic_example = {
+            "prompt": "Please review this code:\n```diff\n+def get_user(id):\n+    return db.query(f'SELECT * FROM users WHERE id={id}')\n```",
+            "chosen": (
+                "[SECURITY] File: api/users.py, Line: 2\n"
+                "Observation: SQL query built with f-string interpolation.\n"
+                "Issue: This allows SQL injection — an attacker can pass `1 OR 1=1` as id.\n"
+                "Suggestion: Use parameterized queries.\n"
+                "Example:\n```python\ndb.query('SELECT * FROM users WHERE id = %s', (id,))\n```"
+            ),
+            "rejected": "This might have some issues. Consider refactoring this function.",
+        }
+        # Use dict() to create independent copies — list multiplication creates shared references
+        return [dict(synthetic_example) for _ in range(10)]
 
 
 # ---------------------------------------------------------------------------
@@ -253,7 +253,7 @@ def train_dpo(
         save_steps=500,
         save_total_limit=2,
         remove_unused_columns=False,
-        report_to="wandb",
+        report_to="wandb" if os.environ.get("WANDB_API_KEY") else "none",
         run_name="mergepilot-dpo",
         deepspeed="training/configs/ds_config.json",
     )
@@ -293,7 +293,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-model", default="./checkpoints/stage2")
-    parser.add_argument("--data-dir", default="./data/synthesized/dpo")
+    parser.add_argument("--data-dir", default="./data/synthesized")
     parser.add_argument("--output-dir", default="./checkpoints/stage3-dpo")
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--grad-accum", type=int, default=4)

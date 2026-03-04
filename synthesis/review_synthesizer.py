@@ -25,6 +25,7 @@ Usage:
 """
 
 import asyncio
+import itertools
 import json
 import os
 import re
@@ -173,9 +174,9 @@ but includes unnecessary extra changes:
 - Adding abstractions not needed here
 - Extra logging/comments not requested
 
-Return JSON:
+Return JSON with exactly this structure (copy the minimal fix above verbatim into "chosen"):
 {{
-  "chosen": "{minimal_fix}",
+  "chosen": <copy the minimal fix shown above verbatim>,
   "rejected": "...(the bloated version with unnecessary changes)...",
   "chosen_explanation": "why the minimal fix is better",
   "rejected_explanation": "what unnecessary changes are in the bloated version"
@@ -293,8 +294,10 @@ class ReviewSynthesizer:
         self.min_quality_score = min_quality_score
         self.generate_dpo = generate_dpo
         self._semaphore = asyncio.Semaphore(workers)
-        self._vllm_index = 0
+        # Use itertools.cycle for safe, monotonic round-robin URL selection
+        self._vllm_cycle = itertools.cycle(vllm_urls or ["placeholder"])
         self._stats = {"total": 0, "success": 0, "failed": 0, "filtered": 0}
+        self._write_lock = asyncio.Lock()
 
         if backend == "claude":
             self._claude = anthropic.AsyncAnthropic(
@@ -325,8 +328,7 @@ class ReviewSynthesizer:
         if not self.vllm_urls:
             return None
 
-        url = self.vllm_urls[self._vllm_index % len(self.vllm_urls)]
-        self._vllm_index += 1
+        url = next(self._vllm_cycle)
 
         payload = {
             "model": self.vllm_model,
@@ -459,27 +461,35 @@ class ReviewSynthesizer:
             pr_number=review_pair.pr_number,
             language=review_pair.language,
             review_comment=review_pair.comment,
-            chosen=result.get("chosen", review_pair.minimal_fix),
+            # Always use the already-generated minimal_fix as chosen — don't trust LLM to copy it
+            chosen=review_pair.minimal_fix,
             rejected=result.get("rejected", ""),
             chosen_explanation=result.get("chosen_explanation", ""),
             rejected_explanation=result.get("rejected_explanation", ""),
         )
 
     async def _process_pr(self, pr: dict, out_f, dpo_f=None) -> int:
-        """Process one PR across all configured personas."""
+        """Process one PR across all configured personas.
+
+        The semaphore gates at the PR level only — _synthesize_review must NOT
+        acquire the same semaphore (that would deadlock when all slots are held
+        by outer _process_pr calls waiting for inner slots to free).
+        """
         async with self._semaphore:
             saved = 0
             for persona in self.personas:
                 review = await self._synthesize_review(pr, persona)
                 if review:
                     self._stats["success"] += 1
-                    await out_f.write(json.dumps(asdict(review)) + "\n")
+                    async with self._write_lock:
+                        await out_f.write(json.dumps(asdict(review)) + "\n")
                     saved += 1
 
                     if dpo_f and review.minimal_fix:
                         dpo_pair = await self._generate_dpo_pair(review)
                         if dpo_pair:
-                            await dpo_f.write(json.dumps(asdict(dpo_pair)) + "\n")
+                            async with self._write_lock:
+                                await dpo_f.write(json.dumps(asdict(dpo_pair)) + "\n")
                 else:
                     self._stats["filtered"] += 1
 

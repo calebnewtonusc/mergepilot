@@ -158,7 +158,8 @@ class MergePredictorAgent:
                 messages=[{"role": "user", "content": prompt}],
             )
             raw = resp.content[0].text
-            result = json.loads(raw)
+            # Robustly extract JSON — Claude may wrap it in markdown code fences
+            result = self._extract_json(raw)
 
             return MergePrediction(
                 pr_id=pr_id,
@@ -172,6 +173,25 @@ class MergePredictorAgent:
         except Exception as e:
             logger.debug(f"Model prediction failed: {e}, falling back to heuristic")
             return self._predict_heuristic(features, pr_id)
+
+    def _extract_json(self, text: str) -> dict:
+        """Robustly extract a JSON object from a text response (handles markdown fences)."""
+        import re
+        if not text:
+            raise ValueError("Empty response")
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+        # Try JSON inside markdown code fences
+        code_match = re.search(r'```(?:json)?\s*\n(.*?)```', text, re.DOTALL)
+        if code_match:
+            return json.loads(code_match.group(1))
+        # Try any JSON object in the response
+        obj_match = re.search(r'\{.*\}', text, re.DOTALL)
+        if obj_match:
+            return json.loads(obj_match.group(0))
+        raise ValueError(f"No JSON found in response: {text[:100]}")
 
     def _predict_heuristic(self, features: dict, pr_id: str) -> MergePrediction:
         """Heuristic merge probability based on extracted features."""

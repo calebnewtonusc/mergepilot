@@ -58,10 +58,12 @@ class ReviewerAgent:
         model_path: Optional[str] = None,
         vllm_url: Optional[str] = None,
         backend: str = "claude",
+        vllm_model: Optional[str] = None,
     ) -> None:
         self.model_path = model_path
         self.vllm_url = vllm_url
         self.backend = backend
+        self.vllm_model = vllm_model or os.getenv("MODEL_PATH", "Qwen/Qwen2.5-7B-Coder-Instruct")
         self._scorer = ImpactScorer()
 
         if backend == "claude":
@@ -169,7 +171,7 @@ class ReviewerAgent:
             resp = httpx.post(
                 f"{self.vllm_url}/v1/chat/completions",
                 json={
-                    "model": "/model",
+                    "model": self.vllm_model,
                     "messages": [
                         {"role": "system", "content": MERGEPILOT_SYSTEM},
                         {"role": "user", "content": prompt},

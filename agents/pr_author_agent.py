@@ -46,9 +46,11 @@ class PRAuthorAgent:
         self,
         vllm_url: Optional[str] = None,
         backend: str = "claude",
+        vllm_model: Optional[str] = None,
     ) -> None:
         self.vllm_url = vllm_url
         self.backend = backend
+        self.vllm_model = vllm_model or os.getenv("MODEL_PATH", "Qwen/Qwen2.5-7B-Coder-Instruct")
 
         if backend == "claude":
             self._claude = anthropic.Anthropic(
@@ -179,7 +181,7 @@ class PRAuthorAgent:
             resp = httpx.post(
                 f"{self.vllm_url}/v1/chat/completions",
                 json={
-                    "model": "/model",
+                    "model": self.vllm_model,
                     "messages": [
                         {"role": "system", "content": system},
                         {"role": "user", "content": user},

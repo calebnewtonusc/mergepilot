@@ -41,6 +41,7 @@ class SynthesisPipeline:
         output_dir: Path | str,
         backend: str = "claude",
         vllm_urls: Optional[list[str]] = None,
+        vllm_model: str = "Qwen/Qwen2.5-7B-Coder-Instruct",
         workers: int = 20,
         min_quality_score: float = 0.6,
     ) -> None:
@@ -49,6 +50,7 @@ class SynthesisPipeline:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.backend = backend
         self.vllm_urls = vllm_urls or []
+        self.vllm_model = vllm_model or os.getenv("MODEL_PATH", "Qwen/Qwen2.5-7B-Coder-Instruct")
         self.workers = workers
         self.min_quality_score = min_quality_score
         self._semaphore = asyncio.Semaphore(workers)
@@ -61,8 +63,8 @@ class SynthesisPipeline:
 
         self._stats = {"processed": 0, "success": 0, "failed": 0}
 
-    async def synthesize_all(self) -> None:
-        """Synthesize review pairs for all PRs in raw_dir."""
+    async def synthesize_all(self) -> int:
+        """Synthesize review pairs for all PRs in raw_dir. Returns success count."""
         prs = self._load_all_prs()
         logger.info(f"Synthesizing reviews for {len(prs):,} PRs...")
 
@@ -73,6 +75,7 @@ class SynthesisPipeline:
             f"Synthesis: {self._stats['success']:,} success, "
             f"{self._stats['failed']:,} failed"
         )
+        return self._stats["success"]
 
     def _load_all_prs(self) -> list[dict]:
         """Load all PRs from raw data."""
@@ -91,6 +94,8 @@ class SynthesisPipeline:
     async def _synthesize_one(self, pr: dict) -> Optional[SynthesisResult]:
         """Synthesize a review for a single PR."""
         async with self._semaphore:
+            self._stats["processed"] += 1  # Track all attempted PRs, not just successes
+
             diff = pr.get("diff", "")
             if not diff or len(diff) < 100:
                 return None
@@ -132,7 +137,6 @@ class SynthesisPipeline:
                 await f.write(json.dumps(conversation) + "\n")
 
             self._stats["success"] += 1
-            self._stats["processed"] += 1
             return SynthesisResult(
                 pr_id=f"{pr.get('repo', '')}#{pr.get('pr_number', '')}",
                 conversation=conversation,
@@ -192,7 +196,7 @@ class SynthesisPipeline:
                 async with session.post(
                     f"{url}/v1/chat/completions",
                     json={
-                        "model": "/model",
+                        "model": self.vllm_model,
                         "messages": [
                             {"role": "system", "content": system},
                             {"role": "user", "content": user},
